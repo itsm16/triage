@@ -20,7 +20,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "~/components/ui/sidebar"
-import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { EllipsisIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { authClient } from "~/server/better-auth/client"
 
 export function NavUser({
   user,
@@ -32,6 +34,12 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await authClient.signOut()
+    router.push("/sign-in")
+  }
 
   return (
     <SidebarMenu>
@@ -50,7 +58,7 @@ export function NavUser({
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
-              <ChevronsUpDownIcon className="ml-auto size-4" />
+              <EllipsisIcon className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -98,7 +106,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOutIcon
               />
               Log out

@@ -19,19 +19,21 @@ export default function SignInPage() {
     if (err) {
       setError(err.message ?? err.statusText ?? "Something went wrong")
     } else {
-      router.push("/")
+      router.replace("/dashboard")
     }
   }
+
 
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
         <h1 className="mb-2 text-[32px] font-semibold leading-10 tracking-tight text-[#e3e2e7]">
-          Sign in
+          Sign in to Triage
         </h1>
-        <p className="text-[#c3c5d9]">Welcome back to InboxOS</p>
+        <p className="text-[#c3c5d9]">Connect your Google account to get started</p>
       </div>
 
+      {/* Email/password sign-in - hidden for now
       <form onSubmit={handleEmailSignIn} className="mb-6 space-y-4">
         <div>
           <label
@@ -86,19 +88,9 @@ export default function SignInPage() {
           <span className="bg-[#121317] px-2 text-[#c3c5d9]">or</span>
         </div>
       </div>
+      */}
 
-      {error && <p className="mb-4 text-sm text-red-400 text-center">{error}</p>}
       <AuthButtons session={null} />
-
-      <p className="mt-6 text-center text-sm text-[#c3c5d9]">
-        No account?{" "}
-        <a
-          href="/sign-up"
-          className="font-medium text-[#b6c4ff] hover:underline"
-        >
-          Sign up
-        </a>
-      </p>
     </div>
   )
 }

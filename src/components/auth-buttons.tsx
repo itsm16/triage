@@ -10,20 +10,12 @@ export function AuthButtons({ session }: { session: { user: { name?: string | nu
       </p>
         <button
           className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
-          onClick={async () =>
+          onClick={async () =>{
             await authClient.signIn.social({
               provider: "google",
-              scopes: [
-                "https://www.googleapis.com/auth/calendar.events",
-                "https://www.googleapis.com/auth/calendar.readonly",
-                "https://www.googleapis.com/auth/calendar.freebusy",
-                "https://www.googleapis.com/auth/gmail.metadata",
-                "https://www.googleapis.com/auth/gmail.readonly",
-                "https://www.googleapis.com/auth/gmail.send",
-                "https://www.googleapis.com/auth/gmail.labels",
-              ]
+              callbackURL: "/dashboard",
             })
-          }
+          }}
         >
           Sign in with Google
         </button>

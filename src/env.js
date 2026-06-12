@@ -14,6 +14,8 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.string().url(),
     BETTER_AUTH_GOOGLE_CLIENT_ID: z.string(),
     BETTER_AUTH_GOOGLE_CLIENT_SECRET: z.string(),
+    CORSAIR_KEK: z.string().min(1),
+    APP_URL: z.string().url().default("http://localhost:3000"),
     DATABASE_URL: z.string().url(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
@@ -38,6 +40,8 @@ export const env = createEnv({
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     BETTER_AUTH_GOOGLE_CLIENT_ID: process.env.BETTER_AUTH_GOOGLE_CLIENT_ID,
     BETTER_AUTH_GOOGLE_CLIENT_SECRET: process.env.BETTER_AUTH_GOOGLE_CLIENT_SECRET,
+    CORSAIR_KEK: process.env.CORSAIR_KEK,
+    APP_URL: process.env.APP_URL,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
   },

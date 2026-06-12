@@ -34,7 +34,7 @@ export default function SignUpPage() {
         <h1 className="mb-2 text-[32px] font-semibold leading-10 tracking-tight text-[#e3e2e7]">
           Create account
         </h1>
-        <p className="text-[#c3c5d9]">Get started with InboxOS</p>
+        <p className="text-[#c3c5d9]">Get started with triage</p>
       </div>
 
       <form onSubmit={handleEmailSignUp} className="mb-6 space-y-4">

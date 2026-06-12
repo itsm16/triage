@@ -16,12 +16,17 @@ import { TypingText } from "~/components/typing-text"
 export default function Home() {
   return (
     <>
-      <nav className="fixed top-4 left-1/2 z-50 w-[90%] max-w-5xl -translate-x-1/2 rounded-full bg-black/30 px-6 py-2.5 backdrop-blur-sm transition-all duration-300 border border-[#b6c4ff]/10">
+      <nav className="fixed top-4 left-1/2 z-50 w-[90%] max-w-5xl -translate-x-1/2 rounded-full bg-black/30 px-6 py-2.5 backdrop-blur-sm transition-all duration-300 border border-[#b6c4ff]/15">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <span className="text-sm tracking-wide text-white cursor-pointer">
-              Triage
-            </span>
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-7 items-center justify-center rounded bg-[#0055ff]">
+                <Zap className="text-[#e3e6ff]" size={16} />
+              </div>
+              <span className="font-mono text-xs font-medium uppercase tracking-[0.05em] text-white cursor-pointer">
+                Triage
+              </span>
+            </div>
             <div className="hidden gap-6 md:flex">
               {["Features"].map((item) => (
                 <a
@@ -38,14 +43,11 @@ export default function Home() {
             <a href="/sign-in">
               <Button
                 variant="ghost"
-                className="hidden font-mono text-xs font-medium uppercase tracking-[0.05em] text-[#e3e2e7] hover:text-[#b6c4ff] md:block"
+                className="hidden font-mono text-xs font-medium uppercase tracking-[0.05em] bg-[#0055ff] text-[#e3e2e7] hover:border hover:border-white/30 hover:bg-[#0044cc] md:block"
               >
                 Sign In
               </Button>
             </a>
-            <Button className="rounded-lg bg-[#0055ff] px-6 py-2 font-mono text-xs font-bold uppercase tracking-[0.05em] text-[#e3e6ff] hover:opacity-90">
-              Get Started
-            </Button>
           </div>
         </div>
       </nav>
@@ -72,7 +74,7 @@ export default function Home() {
               their inbox and calendar. Command your workflow with precision.
             </p>
 
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            {/* <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button className="w-full rounded-xl bg-[#0055ff] px-8 py-6 text-base font-bold text-[#002780] shadow-lg shadow-[#0055ff]/20 transition-transform hover:-translate-y-0.5 sm:w-auto">
                 Secure Early Access
               </Button>
@@ -82,7 +84,7 @@ export default function Home() {
               >
                 Watch the Concept
               </Button>
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -272,7 +274,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-8 px-10 md:flex-row md:justify-between">
           <div className="flex flex-col items-center gap-2 md:items-start">
             <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#c3c5d9]">
-              Triage AI
+              Triage
             </span>
             <p className="font-mono text-[11px] text-[#c3c5d9]/50">
               &copy; 2024 Triage AI Productivity. All rights reserved.
