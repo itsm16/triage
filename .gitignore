@@ -8,6 +8,8 @@
 # testing
 /coverage
 rough.txt
+setup.md
+learnings.md
 
 # database
 /prisma/db.sqlite

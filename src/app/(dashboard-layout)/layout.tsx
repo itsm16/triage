@@ -1,7 +1,16 @@
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
+import { eq, and, isNotNull } from "drizzle-orm"
 
+import { db } from "~/server/db"
+import { corsairAccounts } from "~/server/db/schema"
 import { Sidebar } from "~/components/sidebar"
+import { SidebarProvider, SidebarInset } from "~/components/ui/sidebar"
+import { ComposePanel } from "~/components/compose-panel"
+import { Loader } from "~/components/loader"
 import { getSession } from "~/server/better-auth/server"
+import { CorsairGuard } from "~/components/corsair-guard"
+import { Toaster } from "~/components/ui/sonner"
 
 export default async function DashboardLayout({
   children,
@@ -14,12 +23,37 @@ export default async function DashboardLayout({
     redirect("/sign-in")
   }
 
+  const corsairSetup = await db
+    .select({ id: corsairAccounts.id })
+    .from(corsairAccounts)
+    .where(
+      and(
+        eq(corsairAccounts.tenantId, session.user.id),
+        isNotNull(corsairAccounts.integrationId),
+      ),
+    )
+    .limit(1)
+
+  const corsairSetupComplete = corsairSetup.length > 0
+
+  const headersList = await headers()
+  const pathname = headersList.get("x-invoke-path") ?? ""
+
+  if (!corsairSetupComplete && pathname !== "" && pathname !== "/dashboard") {
+    redirect("/dashboard")
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[#121317]">
-      <Sidebar session={session} />
-      <main className="flex flex-1 flex-col overflow-hidden">
-        {children}
-      </main>
-    </div>
+    <CorsairGuard corsairSetupComplete={corsairSetupComplete}>
+      <SidebarProvider>
+        <Sidebar session={session} />
+        <SidebarInset className="overflow-hidden bg-[#121317]">
+          <Loader />
+          <Toaster position="top-right"/>
+          {children}
+        </SidebarInset>
+      </SidebarProvider>
+      <ComposePanel />
+    </CorsairGuard>
   )
 }

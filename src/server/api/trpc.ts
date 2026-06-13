@@ -13,6 +13,7 @@ import { ZodError } from "zod";
 
 import { auth } from "~/server/better-auth";
 import { db } from "~/server/db";
+import { corsair } from "~/server/corsair";
 
 /**
  * 1. CONTEXT
@@ -127,8 +128,8 @@ export const protectedProcedure = t.procedure
     }
     return next({
       ctx: {
-        // infers the `session` as non-nullable
         session: { ...ctx.session, user: ctx.session.user },
+        tenant: corsair.withTenant(ctx.session.user.id),
       },
     });
   });

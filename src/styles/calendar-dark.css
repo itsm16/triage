@@ -1,0 +1,94 @@
+.calendar-dark {
+  --fc-border-color: rgba(67, 70, 86, 0.15);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(30, 31, 35, 0.5);
+  --fc-today-bg-color: rgba(67, 70, 86, 0.15);
+  --fc-event-bg-color: #0055ff;
+  --fc-event-border-color: #0055ff;
+  --fc-event-text-color: #e3e6ff;
+  --fc-more-link-bg-color: rgba(30, 31, 35, 0.8);
+  --fc-more-link-text-color: #b6c4ff;
+  --fc-now-indicator-color: #b6c4ff;
+  --fc-list-event-hover-bg-color: rgba(30, 31, 35, 0.5);
+}
+
+.calendar-dark .fc {
+  color: #c3c5d9;
+  font-size: 13px;
+}
+
+.calendar-dark .fc .fc-toolbar-title {
+  color: #e3e2e7;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.calendar-dark .fc th {
+  color: #8d90a2;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 0;
+}
+
+.calendar-dark .fc .fc-daygrid-day-number,
+.calendar-dark .fc .fc-col-header-cell-cushion {
+  color: #c3c5d9;
+  text-decoration: none;
+}
+
+.calendar-dark .fc .fc-daygrid-day-top {
+  justify-content: center;
+}
+
+.calendar-dark .fc .fc-daygrid-more-link {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.calendar-dark .fc .fc-timegrid-slot {
+  height: 32px;
+}
+
+.calendar-dark .fc .fc-timegrid-slot-label {
+  color: #8d90a2;
+  font-size: 11px;
+}
+
+.calendar-dark .fc .fc-timegrid-axis {
+  color: #8d90a2;
+}
+
+.calendar-dark .fc .fc-button {
+  background: transparent;
+  border: 1px solid rgba(67, 70, 86, 0.2);
+  color: #c3c5d9;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.calendar-dark .fc .fc-button:hover {
+  background: rgba(67, 70, 86, 0.2);
+  color: #e3e2e7;
+}
+
+.calendar-dark .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: #0055ff;
+  border-color: #0055ff;
+  color: #e3e6ff;
+}
+
+.calendar-dark .fc .fc-scrollgrid {
+  border-color: rgba(67, 70, 86, 0.15);
+}
+
+.calendar-dark .fc .fc-scrollgrid-section > td {
+  border-color: rgba(67, 70, 86, 0.15);
+}
+
+.calendar-dark .fc .fc-day-other .fc-daygrid-day-top {
+  opacity: 0.35;
+}
