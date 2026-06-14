@@ -1,7 +1,8 @@
-import { Mail, Calendar, Star, Inbox } from "lucide-react"
+import { Mail, Calendar, HashIcon } from "lucide-react"
 import Link from "next/link"
 import { api } from "~/trpc/server";
 import { getSession } from "~/server/better-auth/server";
+import { EventsSection } from "~/components/dashboard/events-section";
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ connected?: string; error?: string }>
@@ -18,7 +19,7 @@ export default async function DashboardPage(props: {
 
   const important = await api.corsair.listImportantMessages();
 
-  return <DashboardShell connectedNames={connectedNames} searchParams={searchParams} important={important} userName={session?.user?.name ?? null} />;
+  return <DashboardShell searchParams={searchParams} important={important} userName={session?.user?.name ?? null} />;
 }
 
 async function ConnectPrompt({
@@ -80,12 +81,10 @@ async function ConnectPrompt({
 }
 
 async function DashboardShell({
-  connectedNames,
   searchParams,
   important,
   userName,
 }: {
-  connectedNames: Set<string>;
   searchParams: { connected?: string; error?: string };
   important: { id?: string; subject: string; from: string; snippet?: string }[];
   userName: string | null;
@@ -95,7 +94,7 @@ async function DashboardShell({
       <header className="flex h-8 shrink-0" />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[1200px] space-y-8 p-6 md:p-10">
+        <div className="mx-auto w-full max-w-[1400px] space-y-8 p-6 md:p-10">
           {searchParams?.connected && (
             <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-6 py-4">
               <p className="text-sm font-medium text-green-400">
@@ -119,52 +118,48 @@ async function DashboardShell({
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            <Link
-              href="/email"
-              className="rounded-xl border border-[#434656]/10 bg-[#1a1b1f] p-6 transition-colors hover:border-[#b6c4ff]/20"
-            >
-              <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-[#b6c4ff]/10">
-                <Inbox className="size-5 text-[#b6c4ff]" />
+
+            <section className="rounded-xl border border-[#434656]/10 bg-[#1a1b1f] p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HashIcon className="size-4 text-[#b6c4ff]" />
+                  <h2 className="text-lg font-semibold text-[#e3e2e7]">Important & Unread</h2>
+                </div>
+                <Link href="/email" className="text-sm text-[#b6c4ff] hover:underline">
+                  View all
+                </Link>
               </div>
-              <p className="text-2xl font-bold text-[#e3e2e7]">{important.length}</p>
-              <p className="text-sm text-[#8d90a2]">Important unread</p>
-            </Link>
-          </div>
-          <section>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Star className="size-4 text-[#b6c4ff]" />
-                <h2 className="text-lg font-semibold text-[#e3e2e7]">Important & Unread</h2>
-              </div>
-              <Link href="/email" className="text-sm text-[#b6c4ff] hover:underline">
-                View all
-              </Link>
-            </div>
-            <div className="space-y-2">
-              {important.length === 0 ? (
-                <p className="py-8 text-center text-sm text-[#8d90a2]">No important unread emails</p>
-              ) : (
-                important.map((msg) => (
-                  <Link
-                    key={msg.id}
-                    href="/email"
-                    className="flex items-start gap-4 rounded-xl border border-[#434656]/10 bg-[#1a1b1f] px-5 py-4 transition-colors hover:border-[#b6c4ff]/20"
-                  >
-                    <div className="flex size-8 items-center justify-center rounded-full bg-[#b6c4ff]/10">
-                      <Star className="size-4 fill-[#b6c4ff] text-[#b6c4ff]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-medium text-[#e3e2e7]">{msg.from}</p>
+              <div className="space-y-2">
+                {important.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-[#8d90a2]">No important unread emails</p>
+                ) : (
+                  important.map((msg) => (
+                    <Link
+                      key={msg.id}
+                      href="/email"
+                      className="flex items-start gap-3 rounded-lg border border-[#434656]/10 bg-[#121317] px-4 py-3 transition-colors hover:border-[#b6c4ff]/20"
+                    >
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#b6c4ff]/10">
+                        <HashIcon className="size-3.5 fill-[#b6c4ff] text-[#b6c4ff]" />
                       </div>
-                      <p className="truncate text-sm font-semibold text-[#c3c5d9]">{msg.subject}</p>
-                      <p className="mt-0.5 line-clamp-1 text-sm text-[#8d90a2]">{msg.snippet}</p>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </section>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[#e3e2e7]">{msg.from}</p>
+                        <p className="truncate text-sm font-semibold text-[#c3c5d9]">{msg.subject}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-[#8d90a2]">{msg.snippet}</p>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <EventsSection />
+
+            <section className="rounded-xl border border-dashed border-[#434656]/20 bg-[#1a1b1f]/50 p-6">
+              <p className="py-16 text-center text-sm text-[#8d90a2]">Coming soon</p>
+            </section>
+
+          </div>
         </div>
       </div>
     </>

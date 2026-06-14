@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { FileText, Plus, Search, ChevronDown, MoreHorizontal } from "lucide-react"
 import { templates } from "~/lib/templates"
-import { useComposeStore } from "~/stores/compose-store"
+import { useComposeStore } from "~/lib/compose-store"
 
 export default function TemplatesPage() {
   const [search, setSearch] = useState("")

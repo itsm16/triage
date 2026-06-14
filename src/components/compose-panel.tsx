@@ -13,7 +13,7 @@ import {
   Smile,
   X,
 } from "lucide-react"
-import { useComposeStore, type ComposeInstance } from "~/stores/compose-store"
+import { useComposeStore, type ComposeInstance } from "~/lib/compose-store"
 import { composeSchema } from "~/lib/compose-schema"
 import { templates } from "~/lib/templates"
 import { api } from "~/trpc/react"
@@ -53,6 +53,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
     onSuccess: () => {
       toast.success("Message sent")
       utils.corsair.listMessages.invalidate()
+      utils.corsair.getThread.invalidate()
       close(instance.id)
     },
     onError: () => toast.error("Failed to send message"),
@@ -73,6 +74,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
       to: instance.formData.to,
       subject: instance.formData.subject,
       body: instance.formData.body,
+      threadId: instance.replyTo?.threadId,
       inviteTitle: instance.formData.includeInvite ? instance.formData.inviteTitle || instance.formData.subject : undefined,
       inviteStart: instance.formData.includeInvite ? instance.formData.inviteStart : undefined,
       inviteEnd: instance.formData.includeInvite ? instance.formData.inviteEnd : undefined,
@@ -104,6 +106,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
           })
           return
         }
+        console.log("err",hasConflict)
       } catch {
         // availability check failed, proceed anyway
       }

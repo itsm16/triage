@@ -1,26 +1,23 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import {
-  Archive,
-  AtSign,
   Bell,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
   History,
   Inbox,
   Search,
   Trash2,
-  Send,
   Tag,
+  AtSign,
+  X,
 } from "lucide-react"
 import { api } from "~/trpc/react"
 import { useLoaderStore } from "~/lib/loader-store"
 import { toast } from "sonner"
-import { useComposeStore } from "~/stores/compose-store"
+import { useComposeStore } from "~/lib/compose-store"
+import { EmailList } from "~/components/email/email-list"
+import { EmailThread } from "~/components/email/email-thread"
 
 const CATEGORIES = [
   { id: undefined, label: "All", icon: Inbox },
@@ -31,14 +28,6 @@ const CATEGORIES = [
   { id: "CATEGORY_FORUMS", label: "Forums", icon: Bell },
 ]
 
-const CATEGORY_LABEL_NAMES: Record<string, string> = {
-  CATEGORY_PRIMARY: "Primary",
-  CATEGORY_SOCIAL: "Social",
-  CATEGORY_PROMOTIONS: "Promotions",
-  CATEGORY_UPDATES: "Updates",
-  CATEGORY_FORUMS: "Forums",
-}
-
 const TAB_TO_CATEGORY: Record<string, string> = {
   primary: "CATEGORY_PRIMARY",
   updates: "CATEGORY_UPDATES",
@@ -46,6 +35,44 @@ const TAB_TO_CATEGORY: Record<string, string> = {
   promotions: "CATEGORY_PROMOTIONS",
   drafts: "DRAFT",
   sent: "SENT",
+  trash: "TRASH",
+}
+
+const CATEGORY_TO_TAB = Object.fromEntries(
+  Object.entries(TAB_TO_CATEGORY).map(([k, v]) => [v, k])
+)
+
+const KNOWN_MODIFIERS = new Set([
+  ...Object.keys(TAB_TO_CATEGORY),
+  "all",
+])
+
+function parseSearch(
+  input: string,
+  currentCategory: string | undefined
+): { labelIds: string[] | undefined; query: string } {
+  const match = input.match(/:(\w+)/)
+  if (match && match[1] && match.index != null) {
+    const mod = match[1].toLowerCase()
+    const before = input.slice(0, match.index).trimEnd()
+    const after = input.slice(match.index + match[0].length).trimStart()
+    const rest = (before + " " + after).trim()
+
+    if (mod === "all") return { labelIds: undefined, query: rest }
+    const label = TAB_TO_CATEGORY[mod]
+    if (label) return { labelIds: [label], query: rest }
+  }
+  return {
+    labelIds: currentCategory ? [currentCategory] : undefined,
+    query: input,
+  }
+}
+
+function contextLabel(parsedLabelIds: string[] | undefined): string {
+  if (!parsedLabelIds || parsedLabelIds.length === 0) return "all"
+  const id = parsedLabelIds[0]
+  if (!id) return "all"
+  return CATEGORY_TO_TAB[id] ?? "all"
 }
 
 export default function EmailPage() {
@@ -53,40 +80,73 @@ export default function EmailPage() {
   const [pageToken, setPageToken] = useState<string | undefined>(undefined)
   const [tokens, setTokens] = useState<string[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showReplies, setShowReplies] = useState(true)
   const [category, setCategory] = useState<string | undefined>(undefined)
   const setLoading = useLoaderStore((s) => s.setLoading)
 
+  const [searchInput, setSearchInput] = useState("")
+  const [debouncedInput, setDebouncedInput] = useState("")
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     const tab = searchParams.get("tab")
+    let newCat: string | undefined
     if (tab && TAB_TO_CATEGORY[tab]) {
-      setCategory(TAB_TO_CATEGORY[tab])
+      newCat = TAB_TO_CATEGORY[tab]
     } else {
-      setCategory(undefined)
+      newCat = undefined
     }
+    setCategory(newCat)
     setPageToken(undefined)
     setTokens([])
     setActiveId(null)
+    setActiveThreadId(null)
     setSelectedIds(new Set())
+    setSearchInput("")
+    setDebouncedInput("")
   }, [searchParams])
 
-  const { data, isLoading, refetch } = api.corsair.listMessages.useQuery({
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setDebouncedInput(searchInput)
+    }, 250)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [searchInput])
+
+  const parsed = parseSearch(debouncedInput, category)
+
+  const { data, isLoading, refetch, isFetching } = api.corsair.listMessages.useQuery({
     pageToken,
-    labelIds: category ? [category] : undefined,
+    labelIds: parsed.labelIds,
+    q: parsed.query || undefined,
   })
-  const activeMsg = api.corsair.getMessage.useQuery({ id: activeId! }, { enabled: !!activeId })
-  const { data: labels } = api.corsair.listLabels.useQuery(undefined, { enabled: !!activeId })
+
+  useEffect(() => {
+    setLoading(isLoading && !debouncedInput)
+    return () => setLoading(false)
+  }, [isLoading, debouncedInput, setLoading])
+
+  const activeThread = api.corsair.getThread.useQuery(
+    { id: activeThreadId! },
+    { enabled: !!activeThreadId }
+  )
+
+  const isTrash = (parsed.labelIds ?? (category ? [category] : [])).includes("TRASH")
 
   const modifyMsg = api.corsair.modifyMessage.useMutation({
     onSuccess: () => refetch(),
   })
+  const deleteMsg = api.corsair.deleteMessage.useMutation({
+    onError: () => toast.error("Failed to delete email"),
+  })
   const createEvent = api.corsair.createEvent.useMutation()
   const openCompose = useComposeStore((s) => s.open)
-
-  useEffect(() => {
-    setLoading(isLoading)
-    return () => setLoading(false)
-  }, [isLoading, setLoading])
 
   const messages = data?.messages ?? []
   const nextPageToken = data?.nextPageToken
@@ -96,6 +156,7 @@ export default function EmailPage() {
       setTokens((prev) => [...prev, pageToken ?? ""])
       setPageToken(nextPageToken)
       setActiveId(null)
+      setActiveThreadId(null)
     }
   }
 
@@ -106,16 +167,20 @@ export default function EmailPage() {
       setTokens(newTokens)
       setPageToken(prev || undefined)
       setActiveId(null)
+      setActiveThreadId(null)
     }
   }
 
-  const active = activeMsg.data
+  const threadMessages = activeThread.data ?? []
 
   const handleArchive = () => {
     if (!activeId) return
     modifyMsg.mutate(
       { id: activeId, removeLabelIds: ["INBOX"] },
-      { onSuccess: () => toast.success("Email archived"), onError: () => toast.error("Failed to archive") },
+      {
+        onSuccess: () => toast.success("Email archived"),
+        onError: () => toast.error("Failed to archive"),
+      }
     )
   }
 
@@ -123,7 +188,25 @@ export default function EmailPage() {
     if (!activeId) return
     modifyMsg.mutate(
       { id: activeId, addLabelIds: ["TRASH"], removeLabelIds: ["INBOX"] },
-      { onSuccess: () => toast.success("Email trashed"), onError: () => toast.error("Failed to trash") },
+      {
+        onSuccess: () => toast.success("Email trashed"),
+        onError: () => toast.error("Failed to trash"),
+      }
+    )
+  }
+
+  const handlePermanentDelete = () => {
+    if (!activeId) return
+    deleteMsg.mutate(
+      { id: activeId },
+      {
+        onSuccess: () => {
+          toast.success("Email permanently deleted")
+          refetch()
+          setActiveId(null)
+          setActiveThreadId(null)
+        },
+      }
     )
   }
 
@@ -136,249 +219,229 @@ export default function EmailPage() {
     })
   }
 
+  const handleSelectAll = () => {
+    const allIds = messages.map((m) => m.id).filter(Boolean) as string[]
+    if (allIds.every((id) => selectedIds.has(id))) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(allIds))
+    }
+  }
+
+  const handleSelectRange = (start: number, end: number) => {
+    const ids = messages
+      .slice(start, end + 1)
+      .map((m) => m.id)
+      .filter(Boolean) as string[]
+    setSelectedIds(new Set(ids))
+  }
+
   const handleBulkTrash = () => {
     let count = 0
+    let hasError = false
     const ids = Array.from(selectedIds)
-    for (const id of ids) {
-      modifyMsg.mutate(
-        { id, addLabelIds: ["TRASH"], removeLabelIds: ["INBOX"] },
-        { onSuccess: () => { count++; if (count === ids.length) toast.success(`${ids.length} emails trashed`) } },
-      )
+    if (isTrash) {
+      for (const id of ids) {
+        deleteMsg.mutate(
+          { id },
+          {
+            onSuccess: () => {
+              count++
+              if (count === ids.length) {
+                if (!hasError)
+                  toast.success(`${ids.length} emails permanently deleted`)
+                refetch()
+                setActiveId(null)
+                setActiveThreadId(null)
+              }
+            },
+            onError: () => {
+              hasError = true
+              count++
+              if (count === ids.length)
+                toast.error("Failed to delete some emails")
+            },
+          }
+        )
+      }
+    } else {
+      for (const id of ids) {
+        modifyMsg.mutate(
+          { id, addLabelIds: ["TRASH"], removeLabelIds: ["INBOX"] },
+          {
+            onSuccess: () => {
+              count++
+              if (count === ids.length)
+                toast.success(`${ids.length} emails trashed`)
+            },
+            onError: () => {
+              hasError = true
+              count++
+              if (count === ids.length)
+                toast.error("Failed to trash some emails")
+            },
+          }
+        )
+      }
     }
     setSelectedIds(new Set())
   }
 
+  const targetMsg =
+    threadMessages.find((m) => m.id === activeId) ??
+    threadMessages[threadMessages.length - 1]
+
   const handleConvertToMeeting = () => {
-    if (!active) return
+    if (!targetMsg) return
     const start = new Date()
     start.setHours(start.getHours() + 1, 0, 0, 0)
     const end = new Date(start)
     end.setHours(end.getHours() + 1)
     createEvent.mutate(
       {
-        summary: active.subject || "Meeting",
-        description: `From email: ${active.subject}\nFrom: ${active.from}\n\n${active.snippet}`,
+        summary: targetMsg.subject || "Meeting",
+        description: `From email: ${targetMsg.subject}\nFrom: ${targetMsg.from}\n\n${targetMsg.snippet}`,
         start: { dateTime: start.toISOString() },
         end: { dateTime: end.toISOString() },
       },
       {
         onSuccess: () => toast.success("Meeting added to calendar"),
         onError: () => toast.error("Failed to create meeting"),
-      },
+      }
     )
   }
 
-  const activeLabelNames = active?.labelIds
-    ?.filter((id) => id.startsWith("CATEGORY_"))
-    .map((id) => CATEGORY_LABEL_NAMES[id])
-    .filter(Boolean) ?? []
+  const handleReply = () => {
+    const target =
+      (threadMessages.find((m) => m.id === activeId) ??
+        threadMessages[threadMessages.length - 1])!
+    openCompose("reply", {
+      from: target.from,
+      subject: target.subject,
+      emailId: target.id!,
+      threadId: target.threadId!,
+    })
+  }
+
+  const handleSelectMessage = (id: string, threadId: string) => {
+    setActiveId(id)
+    setActiveThreadId(threadId)
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput("")
+    setPageToken(undefined)
+    setTokens([])
+    inputRef.current?.focus()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      const val = e.currentTarget.value
+      if (val === "") {
+        e.preventDefault()
+        setSearchInput(":all ")
+        setPageToken(undefined)
+        setTokens([])
+        return
+      }
+      const match = val.match(/^:(\w+)\s/)
+      if (match && match[1] && KNOWN_MODIFIERS.has(match[1].toLowerCase())) {
+        const rest = val.slice(match[0].length)
+        e.preventDefault()
+        setSearchInput(rest)
+        setPageToken(undefined)
+        setTokens([])
+      }
+    }
+  }
 
   return (
     <>
       <header className="flex h-16 shrink-0 items-center border-b border-[#434656]/10 bg-[#121317]/80 px-4 backdrop-blur-md">
         <div className="flex w-full max-w-md items-center rounded border border-[#434656]/20 bg-[#1e1f23] px-3 py-1.5">
-          <Search className="mr-2 text-[#8d90a2]" size={18} />
+          <Search className="mr-2 size-4 shrink-0 text-[#8d90a2]" />
+          <span className="mr-1 shrink-0 rounded bg-[#b6c4ff]/10 px-1.5 py-0.5 text-xs font-medium text-[#b6c4ff]">
+            :{contextLabel(parsed.labelIds)}
+          </span>
           <input
+            ref={inputRef}
             className="w-full bg-transparent text-sm text-[#e3e2e7] placeholder-[#8d90a2]/50 outline-none"
-            placeholder="Search Command (Cmd+K)"
+            placeholder="Search emails... (e.g. :promotions meeting)"
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value)
+              setPageToken(undefined)
+              setTokens([])
+            }}
+            onKeyDown={handleKeyDown}
           />
+          {(searchInput || isLoading) && (
+            <div className="ml-1 flex shrink-0 items-center gap-1">
+              {isFetching && (
+                <div className="size-3.5 animate-spin rounded-full border-2 border-[#b6c4ff]/20 border-t-[#b6c4ff]" />
+              )}
+              {searchInput && (
+                <button
+                  onClick={handleClearSearch}
+                  className="rounded p-0.5 text-[#8d90a2] transition-colors hover:text-[#e3e2e7]"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="ml-auto flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
-              <span className="text-xs text-[#8d90a2]">{selectedIds.size} selected</span>
-              <button onClick={handleBulkTrash} className="flex items-center gap-1 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20">
-                <Trash2 className="size-3.5" /> Delete
+              <span className="text-xs text-[#8d90a2]">
+                {selectedIds.size} selected
+              </span>
+              <button
+                onClick={handleBulkTrash}
+                className="flex items-center gap-1 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
+              >
+                <Trash2 className="size-3.5" />{" "}
+                {isTrash ? "Delete permanently" : "Delete"}
               </button>
             </>
           )}
-          <Bell className="size-5 text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
-          <History className="size-5 text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
+          <Bell className="size-5 cursor-pointer text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
+          <History className="size-5 cursor-pointer text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <section className="flex w-[420px] shrink-0 flex-col border-r border-[#434656]/10 bg-[#0d0e12] min-h-0">
+      <div className="flex h-[calc(100vh-4rem)] items-start overflow-y-hidden">
+        <EmailList
+          messages={messages}
+          isLoading={false}
+          activeId={activeId}
+          selectedIds={selectedIds}
+          tokensLength={tokens.length}
+          nextPageToken={nextPageToken}
+          messagesCount={messages.length}
+          onSelectMessage={handleSelectMessage}
+          onToggleSelect={toggleSelect}
+          onSelectAll={handleSelectAll}
+          onSelectRange={handleSelectRange}
+          onGoNext={goNext}
+          onGoPrev={goPrev}
+        />
 
-          <div className="flex items-center justify-between border-b border-[#434656]/10 px-4 py-3">
-            <button
-              onClick={goPrev}
-              disabled={tokens.length === 0}
-              className="flex items-center gap-1 text-sm text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ChevronLeft className="size-4" /> Prev
-            </button>
-            <span className="text-xs text-[#434656]">{messages.length} emails</span>
-            <button
-              onClick={goNext}
-              disabled={!nextPageToken}
-              className="flex items-center gap-1 text-sm text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-30 disabled:pointer-events-none"
-            >
-              Next <ChevronRight className="size-4" />
-            </button>
-          </div>
-
-          {/* Email list container */}
-          <div className="overflow-y-auto h-[calc(100vh-110px)] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#434656]/50 [&::-webkit-scrollbar-track]:bg-transparent">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20 text-sm text-[#8d90a2]">
-                Loading...
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex items-center justify-center py-20 text-sm text-[#8d90a2]">
-                No emails found
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <button
-                  key={msg.id}
-                  onClick={() => msg.id && setActiveId(msg.id)}
-                  className={`relative w-full border-l-2 px-4 py-3 text-left transition-colors box-border ${
-                    msg.id === activeId
-                      ? "border-[#b6c4ff] bg-[#b6c4ff]/5"
-                      : "border-transparent hover:bg-[#292a2e]"
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <span
-                      onClick={(e) => { e.stopPropagation(); msg.id && toggleSelect(msg.id) }}
-                      className={`mt-1 flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border transition-colors ${
-                        (msg.id && selectedIds.has(msg.id))
-                          ? "border-[#b6c4ff] bg-[#b6c4ff]"
-                          : "border-[#434656]/40 bg-[#1a1b1f] hover:border-[#b6c4ff]/60"
-                      }`}
-                    >
-                      {(msg.id && selectedIds.has(msg.id)) && (
-                        <svg className="size-2.5 text-[#121317]" viewBox="0 0 12 12" fill="none">
-                          <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <span
-                          className={`truncate text-base ${
-                            msg.id === activeId
-                              ? "font-bold"
-                              : "font-medium"
-                          } text-[#e3e2e7]`}
-                        >
-                          {msg.from.split("<")[0]}
-                        </span>
-                        <span className="shrink-0 font-mono text-[10px] text-[#8d90a2]">
-                          {msg.date}
-                        </span>
-                      </div>
-                      <p className="truncate text-xs font-semibold text-[#e3e2e7]">
-                        {msg.subject}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="flex flex-1 flex-col overflow-hidden bg-[#121317]">
-          {!activeId ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-[#8d90a2]">
-              Select an email to read
-            </div>
-          ) : activeMsg.isFetching ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-[#8d90a2]">
-              Loading email...
-            </div>
-          ) : active ? (
-            <>
-              <header className="flex h-12 shrink-0 items-center justify-end gap-2 border-b border-[#434656]/10 px-8">
-                <button
-                  onClick={() => openCompose("reply", { from: active.from, subject: active.subject, emailId: activeId! })}
-                  className="flex items-center gap-2 rounded bg-[#0055ff] px-3 py-1.5 font-mono text-[11px] text-[#e3e6ff] transition-opacity hover:opacity-90"
-                >
-                  <Send className="size-[18px]" />
-                  Reply
-                </button>
-                <button
-                  onClick={handleConvertToMeeting}
-                  className="flex items-center gap-2 rounded bg-[#0055ff] px-3 py-1.5 font-mono text-[11px] text-[#e3e6ff] transition-opacity hover:opacity-90"
-                >
-                  <Calendar className="size-[18px]" />
-                  Convert to Meeting
-                </button>
-                <button
-                  onClick={handleArchive}
-                  className="flex items-center gap-1 rounded p-1.5 text-[#c3c5d9] transition-colors hover:text-[#e3e2e7]"
-                  title="Archive (E)"
-                >
-                  <Archive className="size-4" />
-                </button>
-                <button
-                  onClick={handleTrash}
-                  className="flex items-center gap-1 rounded p-1.5 text-[#c3c5d9] transition-colors hover:text-[#e3e2e7]"
-                  title="Trash (#)"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-                <button className="flex items-center gap-1 rounded p-1.5 text-[#c3c5d9] transition-colors hover:text-[#e3e2e7]">
-                  <Clock className="size-4" />
-                </button>
-              </header>
-
-              {activeLabelNames.length > 0 && (
-                <div className="flex shrink-0 items-center gap-2 border-b border-[#434656]/10 px-8 py-2">
-                  {activeLabelNames.map((name) => (
-                    <span
-                      key={name}
-                      className="flex items-center gap-1 rounded bg-[#0055ff]/10 px-2 py-0.5 font-mono text-[10px] text-[#b6c4ff]"
-                    >
-                      <Tag className="size-3" />
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-4xl flex-col pt-3">
-                    <h1 className="mb-2 shrink-0 text-lg font-semibold leading-7 tracking-tight text-[#e3e2e7]">
-                      {active.subject}
-                    </h1>
-                    <div className="mb-3 shrink-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="flex size-6 items-center justify-center rounded-full bg-[#343539] text-[10px] font-bold text-[#c3c5d9]">
-                            {active.from.charAt(0)}
-                          </div>
-                          <div className="text-xs font-medium text-[#e3e2e7]">
-                            {active.from}
-                          </div>
-                          <span className="text-[10px] text-[#8d90a2]">
-                            to {active.to}
-                          </span>
-                        </div>
-                        <span className="font-mono text-[10px] text-[#8d90a2]">
-                          {active.date}
-                        </span>
-                      </div>
-                    </div>
-
-                     {active.bodyHtml ? (
-                      <iframe
-                        className="w-full rounded border-0"
-                        style={{ minHeight: "calc(100vh - 240px)" }}
-                        sandbox="allow-popups allow-popups-to-escape-sandbox"
-                        title="email content"
-                        srcDoc={`<html><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><style>body{margin:0;padding:1rem;padding-bottom:8rem;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#121317;color:#c3c5d9}img{max-width:100%}a{color:#b6c4ff}</style></head><body>${active.bodyHtml}</body></html>`}
-                      />
-                    ) : (
-                      <div className="whitespace-pre-line text-base leading-relaxed text-[#c3c5d9]">{active.bodyText || active.snippet}</div>
-                    )}
-                  </div>
-                </div>
-            </>
-          ) : null}
-        </section>
+        <EmailThread
+          activeId={activeId}
+          isFetching={activeThread.isFetching}
+          threadMessages={threadMessages}
+          showReplies={showReplies}
+          isTrash={isTrash}
+          onToggleReplies={() => setShowReplies(!showReplies)}
+          onReply={handleReply}
+          onConvertToMeeting={handleConvertToMeeting}
+          onArchive={handleArchive}
+          onTrash={handleTrash}
+          onDelete={handlePermanentDelete}
+        />
       </div>
     </>
   )

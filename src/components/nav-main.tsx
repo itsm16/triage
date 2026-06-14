@@ -34,16 +34,16 @@ function isSubItemActive(subUrl: string, pathname: string, searchParams: URLSear
 export function NavMain({
   items,
 }: {
-  items: {
+  items: ({
     title: string
     url: string
     icon?: React.ReactNode
     isActive?: boolean
-    items?: {
-      title: string
-      url: string
-    }[]
-  }[]
+    items?: (
+      | { title: string; url: string }
+      | { title: string; items: { title: string; url: string }[] }
+    )[]
+  })[]
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -72,15 +72,44 @@ export function NavMain({
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {item.items?.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild isActive={isSubItemActive(subItem.url, pathname, searchParams)}>
-                            <Link href={subItem.url}>
-                              <span>{subItem.title}</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {item.items?.map((subItem) => {
+                        if ("items" in subItem) {
+                          return (
+                            <Collapsible key={subItem.title} asChild defaultOpen={false} className="group/collapsible">
+                              <SidebarMenuSubItem>
+                                <CollapsibleTrigger asChild>
+                                  <SidebarMenuSubButton className="text-[#8d90a2]">
+                                    <span>{subItem.title}</span>
+                                    <ChevronRightIcon className="ml-auto size-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                  </SidebarMenuSubButton>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="ml-3 border-l border-[#434656]/20 pl-2 mt-0.5 space-y-0.5">
+                                    {subItem.items.map((nested) => (
+                                      <SidebarMenuSubItem key={nested.title}>
+                                        <SidebarMenuSubButton asChild isActive={isSubItemActive(nested.url, pathname, searchParams)}>
+                                          <Link href={nested.url}>
+                                            <span>{nested.title}</span>
+                                          </Link>
+                                        </SidebarMenuSubButton>
+                                      </SidebarMenuSubItem>
+                                    ))}
+                                  </div>
+                                </CollapsibleContent>
+                              </SidebarMenuSubItem>
+                            </Collapsible>
+                          )
+                        }
+                        return (
+                          <SidebarMenuSubItem key={subItem.title}>
+                            <SidebarMenuSubButton asChild isActive={isSubItemActive(subItem.url, pathname, searchParams)}>
+                              <Link href={subItem.url}>
+                                <span>{subItem.title}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        )
+                      })}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>

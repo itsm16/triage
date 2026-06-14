@@ -13,7 +13,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "~/components/ui/sidebar"
-import { useComposeStore } from "~/stores/compose-store"
+import { useComposeStore } from "~/lib/compose-store"
 
 const navMain = [
   {
@@ -28,12 +28,18 @@ const navMain = [
     isActive: true,
     items: [
       { title: "All", url: "/email" },
-      { title: "Primary", url: "/email?tab=primary" },
+      // { title: "Primary", url: "/email?tab=primary" },
       { title: "Drafts", url: "/email?tab=drafts" },
       { title: "Sent", url: "/email?tab=sent" },
-      { title: "Updates", url: "/email?tab=updates" },
-      { title: "Social", url: "/email?tab=social" },
-      { title: "Promotions", url: "/email?tab=promotions" },
+      {
+        title: "More",
+        items: [
+          { title: "Updates", url: "/email?tab=updates" },
+          { title: "Social", url: "/email?tab=social" },
+          { title: "Promotions", url: "/email?tab=promotions" },
+          { title: "Trash", url: "/email?tab=trash" },
+        ],
+      },
     ],
   },
   {

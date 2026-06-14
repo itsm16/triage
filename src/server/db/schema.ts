@@ -148,3 +148,23 @@ export const corsairEvents = pgTable('corsair_events', {
     payload: jsonb('payload').notNull().default({}),
     status: text('status'),
 });
+
+export const workflows = createTable("workflow", (d) => ({
+  id: d.text().primaryKey().$defaultFn(() => randomUUID()),
+  name: d.text().notNull(),
+  userId: d.text().notNull(),
+  createdAt: d.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+}));
+
+export const workflowNodes = createTable("workflow_node", (d) => ({
+  id: d.text().primaryKey().$defaultFn(() => randomUUID()),
+  workflowId: d.text().notNull().references(() => workflows.id, { onDelete: "cascade" }),
+  type: d.text().notNull(),
+  label: d.text().notNull(),
+  positionX: d.doublePrecision().notNull().default(0),
+  positionY: d.doublePrecision().notNull().default(0),
+  config: jsonb("config").notNull().default({}),
+  createdAt: d.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+}));

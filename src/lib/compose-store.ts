@@ -14,21 +14,24 @@ export interface ComposeFormData {
   inviteEnd?: string
 }
 
+export interface ReplyTo {
+  from: string
+  subject: string
+  emailId: string
+  threadId: string
+}
+
 export interface ComposeInstance {
   id: string
   type: ComposeType
-  replyTo?: {
-    from: string
-    subject: string
-    emailId: string
-  }
+  replyTo?: ReplyTo
   formData: ComposeFormData
   minimized: boolean
 }
 
 interface ComposeStore {
   instances: ComposeInstance[]
-  open: (type: ComposeType, replyTo?: { from: string; subject: string; emailId: string }, initialData?: Partial<ComposeFormData>) => void
+  open: (type: ComposeType, replyTo?: ReplyTo, initialData?: Partial<ComposeFormData>) => void
   close: (id: string) => void
   updateFormData: (id: string, data: Partial<ComposeFormData>) => void
   toggleMinimize: (id: string) => void

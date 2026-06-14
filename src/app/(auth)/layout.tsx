@@ -20,7 +20,7 @@ export default function AuthLayout({
             Your inbox.<br />Under command.
           </h2>
           <p className="max-w-md text-lg text-[#c3c5d9]">
-            The first AI-native control system for professionals who live in their inbox and calendar.
+            AI-native control system for professionals who live in their inbox and calendar.
           </p>
         </div>
       </div>

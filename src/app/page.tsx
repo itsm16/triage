@@ -70,7 +70,7 @@ export default function Home() {
             </h1>
 
             <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-[#c3c5d9] md:text-xl">
-              The first AI-native control system for professionals who live in
+              AI-native control system for professionals who live in
               their inbox and calendar. Command your workflow with precision.
             </p>
 

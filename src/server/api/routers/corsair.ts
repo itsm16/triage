@@ -100,69 +100,18 @@ export const corsairRouter = createTRPCRouter({
         id: input.id,
         format: "full",
       });
+      return parseMessage(m);
+    }),
 
-      const headers = m.payload?.headers ?? [];
-      const getHeader = (name: string) => headers.find((h) => h.name === name)?.value ?? "";
-
-      const bodyHtml = sanitizeHtml(extractPart(m.payload, "text/html") ?? "");
-      const bodyText = extractPart(m.payload, "text/plain");
-
-      let inviteTitle: string | undefined;
-      let inviteStart: string | undefined;
-      let inviteEnd: string | undefined;
-
-      // Check stored sent invites first
-      const stored = sentInvites.get(input.id);
-      if (stored) {
-        inviteTitle = stored.title;
-        inviteStart = stored.start;
-        inviteEnd = stored.end;
-      }
-
-      if (!inviteTitle) {
-        const icalData = extractPart(m.payload, "text/calendar") ?? extractPart(m.payload, "application/ics") ?? extractPart(m.payload, "", ".ics");
-        const toIso = (raw: string) => {
-          const s = raw.endsWith("Z") ? raw.slice(0, -1) : raw;
-          if (s.length === 8) {
-            return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T00:00:00`;
-          }
-          return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:${s.slice(13, 15)}`;
-        };
-        if (icalData) {
-          inviteTitle = icalData.match(/^SUMMARY(?:(?!:).)*:(.+)$/m)?.[1]?.trim();
-          const startMatch = icalData.match(/^DTSTART(?:;.*)?:(.+)$/m);
-          const endMatch = icalData.match(/^DTEND(?:;.*)?:(.+)$/m);
-          if (startMatch) inviteStart = toIso(startMatch[1].trim());
-          if (endMatch) inviteEnd = toIso(endMatch[1].trim());
-        }
-      }
-
-      if (!inviteTitle && bodyHtml && bodyHtml.match(/calendar|invite|invitation/i)) {
-        inviteTitle = bodyHtml.match(/<h2[^>]*>([^<]+)/i)?.[1]?.trim()
-          ?? bodyHtml.match(/<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)/i)?.[1]?.trim()
-          ?? "(Calendar)";
-      }
-
-      const subject = getHeader("Subject");
-      const from = getHeader("From");
-      const to = getHeader("To");
-      const date = getHeader("Date");
-
-      return {
-        id: m.id,
-        threadId: m.threadId,
-        snippet: m.snippet,
-        subject,
-        from,
-        to,
-        date,
-        bodyHtml: bodyHtml ?? "",
-        bodyText: bodyText ?? "",
-        labelIds: m.labelIds ?? [],
-        inviteTitle,
-        inviteStart,
-        inviteEnd,
-      };
+  getThread: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const thread = await ctx.tenant.gmail.api.threads.get({
+        id: input.id,
+        format: "full",
+      });
+      const messages = thread.messages ?? [];
+      return await Promise.all(messages.map((m) => parseMessage(m)));
     }),
 
   modifyMessage: protectedProcedure
@@ -304,6 +253,7 @@ export const corsairRouter = createTRPCRouter({
         timeMax: input.timeMax,
         items: [{ id: "primary" }],
       });
+      console.log("res",res)
       const busy = res.calendars?.primary?.busy ?? [];
       return { hasConflict: busy.length > 0, busySlots: busy };
     }),
@@ -346,27 +296,31 @@ export const corsairRouter = createTRPCRouter({
       to: z.string().email(),
       subject: z.string().min(1),
       body: z.string().optional(),
+      threadId: z.string().optional(),
       inviteTitle: z.string().optional(),
       inviteStart: z.string().optional(),
       inviteEnd: z.string().optional(),
     }))
-      .mutation(async ({ ctx, input }) => {
-        const raw = buildRawEmail(input.to, input.subject, input.body ?? "", {
+    .mutation(async ({ ctx, input }) => {
+      const raw = buildRawEmail(input.to, input.subject, input.body ?? "", {
+        title: input.inviteTitle,
+        start: input.inviteStart,
+        end: input.inviteEnd,
+      });
+      const encoded = Buffer.from(await raw).toString("base64url");
+      const sent = await ctx.tenant.gmail.api.messages.send({
+        raw: encoded,
+        threadId: input.threadId,
+      });
+      if (sent.id && input.inviteTitle) {
+        sentInvites.set(sent.id, {
           title: input.inviteTitle,
-          start: input.inviteStart,
-          end: input.inviteEnd,
+          start: input.inviteStart ?? "",
+          end: input.inviteEnd ?? "",
         });
-        const encoded = Buffer.from(raw).toString("base64url");
-        const sent = await ctx.tenant.gmail.api.messages.send({ raw: encoded });
-        if (sent.id && input.inviteTitle) {
-          sentInvites.set(sent.id, {
-            title: input.inviteTitle,
-            start: input.inviteStart ?? "",
-            end: input.inviteEnd ?? "",
-          });
-        }
-        return { success: true };
-      }),
+      }
+      return { success: true };
+    }),
 
   saveDraft: protectedProcedure
     .input(z.object({
@@ -376,19 +330,28 @@ export const corsairRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const raw = buildRawEmail(input.to, input.subject, input.body ?? "");
-      const encoded = Buffer.from(raw).toString("base64url");
+      const encoded = Buffer.from(await raw).toString("base64url");
       await ctx.tenant.gmail.api.drafts.create({ draft: { message: { raw: encoded } } });
+      return { success: true };
+    }),
+
+  deleteMessage: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      console.log("Deleting message:", input.id);
+      const result = await ctx.tenant.gmail.api.messages.delete({ id: input.id });
+      console.log("Delete result:", result);
       return { success: true };
     }),
 
 });
 
-function buildRawEmail(
+async function buildRawEmail(
   to: string,
   subject: string,
   body: string,
   invite?: { title?: string; start?: string; end?: string },
-): string {
+): Promise<string> {
   if (invite?.title && invite?.start && invite?.end) {
     const boundary = "boundary_abc123";
     const uid = `${Date.now()}-triage`;
@@ -412,7 +375,7 @@ function buildRawEmail(
       "END:VCALENDAR",
     ].join("\r\n");
 
-    const html = render(
+    const html = await render(
       React.createElement(InviteEmail, {
         title: invite.title,
         start: invite.start,
@@ -457,6 +420,70 @@ function buildRawEmail(
     ``,
     body,
   ].join("\r\n");
+}
+
+async function parseMessage(m: any) {
+  const headers = m.payload?.headers ?? [];
+  const getHeader = (name: string) => headers.find((h: any) => h.name === name)?.value ?? "";
+
+  const bodyHtml = sanitizeHtml(extractPart(m.payload, "text/html") ?? "");
+  const bodyText = extractPart(m.payload, "text/plain");
+
+  let inviteTitle: string | undefined;
+  let inviteStart: string | undefined;
+  let inviteEnd: string | undefined;
+
+  const stored = sentInvites.get(m.id);
+  if (stored) {
+    inviteTitle = stored.title;
+    inviteStart = stored.start;
+    inviteEnd = stored.end;
+  }
+
+  if (!inviteTitle) {
+    const icalData = extractPart(m.payload, "text/calendar") ?? extractPart(m.payload, "application/ics") ?? extractPart(m.payload, "", ".ics");
+    const toIso = (raw: string) => {
+      const s = raw.endsWith("Z") ? raw.slice(0, -1) : raw;
+      if (s.length === 8) {
+        return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T00:00:00`;
+      }
+      return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:${s.slice(13, 15)}`;
+    };
+    if (icalData) {
+      inviteTitle = icalData.match(/^SUMMARY(?:(?!:).)*:(.+)$/m)?.[1]?.trim();
+      const startMatch = icalData.match(/^DTSTART(?:;.*)?:(.+)$/m);
+      const endMatch = icalData.match(/^DTEND(?:;.*)?:(.+)$/m);
+      if (startMatch) inviteStart = toIso(startMatch[1]!.trim());
+      if (endMatch) inviteEnd = toIso(endMatch[1]!.trim());
+    }
+  }
+
+  if (!inviteTitle && bodyHtml && bodyHtml.match(/calendar|invite|invitation/i)) {
+    inviteTitle = bodyHtml.match(/<h2[^>]*>([^<]+)/i)?.[1]?.trim()
+      ?? bodyHtml.match(/<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)/i)?.[1]?.trim()
+      ?? "(Calendar)";
+  }
+
+  const subject = getHeader("Subject");
+  const from = getHeader("From");
+  const to = getHeader("To");
+  const date = getHeader("Date");
+
+  return {
+    id: m.id,
+    threadId: m.threadId,
+    snippet: m.snippet,
+    subject,
+    from,
+    to,
+    date,
+    bodyHtml: bodyHtml ?? "",
+    bodyText: bodyText ?? "",
+    labelIds: m.labelIds ?? [],
+    inviteTitle,
+    inviteStart,
+    inviteEnd,
+  };
 }
 
 function extractHeader(

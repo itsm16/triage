@@ -9,9 +9,9 @@ import { cn } from "~/lib/utils";
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Triage - Communication at the Speed of Thought",
+  title: "Triage - Your communication, automated",
   description:
-    "The first AI-native control system for professionals who live in their inbox and calendar. Command your workflow with precision.",
+    "AI-native control system for professionals who live in their inbox and calendar. Command your workflow with precision.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
