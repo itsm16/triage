@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useSearchParams } from "next/navigation"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
   Bell,
   History,
@@ -77,6 +77,8 @@ function contextLabel(parsedLabelIds: string[] | undefined): string {
 
 export default function EmailPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const [pageToken, setPageToken] = useState<string | undefined>(undefined)
   const [tokens, setTokens] = useState<string[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -91,11 +93,26 @@ export default function EmailPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const pageNum = Number(searchParams.get("page")) || 1
+
+  const updateUrl = useCallback(
+    (updates: Record<string, string | undefined>) => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === undefined || v === "") params.delete(k)
+        else params.set(k, v)
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    },
+    [searchParams, router, pathname],
+  )
+
+  const tabParam = searchParams.get("tab")
+
   useEffect(() => {
-    const tab = searchParams.get("tab")
     let newCat: string | undefined
-    if (tab && TAB_TO_CATEGORY[tab]) {
-      newCat = TAB_TO_CATEGORY[tab]
+    if (tabParam && TAB_TO_CATEGORY[tabParam]) {
+      newCat = TAB_TO_CATEGORY[tabParam]
     } else {
       newCat = undefined
     }
@@ -107,7 +124,7 @@ export default function EmailPage() {
     setSelectedIds(new Set())
     setSearchInput("")
     setDebouncedInput("")
-  }, [searchParams])
+  }, [tabParam])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -120,12 +137,10 @@ export default function EmailPage() {
   }, [searchInput])
 
   const parsed = parseSearch(debouncedInput, category)
+  const utils = api.useUtils()
+  const queryInput = { pageToken, labelIds: parsed.labelIds, q: parsed.query || undefined }
 
-  const { data, isLoading, refetch, isFetching } = api.corsair.listMessages.useQuery({
-    pageToken,
-    labelIds: parsed.labelIds,
-    q: parsed.query || undefined,
-  })
+  const { data, isLoading, refetch, isFetching } = api.corsair.listMessages.useQuery(queryInput)
 
   useEffect(() => {
     setLoading(isLoading && !debouncedInput)
@@ -139,10 +154,21 @@ export default function EmailPage() {
 
   const isTrash = (parsed.labelIds ?? (category ? [category] : [])).includes("TRASH")
 
+  function optimisticRemove(id: string) {
+    const prev = utils.corsair.listMessages.getData(queryInput)
+    if (prev) {
+      utils.corsair.listMessages.setData(queryInput, {
+        ...prev,
+        messages: prev.messages.filter(m => m.id !== id),
+      })
+    }
+  }
+
   const modifyMsg = api.corsair.modifyMessage.useMutation({
-    onSuccess: () => refetch(),
+    onSettled: () => refetch(),
   })
   const deleteMsg = api.corsair.deleteMessage.useMutation({
+    onSettled: () => refetch(),
     onError: () => toast.error("Failed to delete email"),
   })
   const createEvent = api.corsair.createEvent.useMutation()
@@ -157,6 +183,7 @@ export default function EmailPage() {
       setPageToken(nextPageToken)
       setActiveId(null)
       setActiveThreadId(null)
+      updateUrl({ page: String(pageNum + 1) })
     }
   }
 
@@ -168,6 +195,7 @@ export default function EmailPage() {
       setPageToken(prev || undefined)
       setActiveId(null)
       setActiveThreadId(null)
+      updateUrl({ page: String(pageNum - 1) })
     }
   }
 
@@ -175,6 +203,9 @@ export default function EmailPage() {
 
   const handleArchive = () => {
     if (!activeId) return
+    optimisticRemove(activeId)
+    setActiveId(null)
+    setActiveThreadId(null)
     modifyMsg.mutate(
       { id: activeId, removeLabelIds: ["INBOX"] },
       {
@@ -186,6 +217,9 @@ export default function EmailPage() {
 
   const handleTrash = () => {
     if (!activeId) return
+    optimisticRemove(activeId)
+    setActiveId(null)
+    setActiveThreadId(null)
     modifyMsg.mutate(
       { id: activeId, addLabelIds: ["TRASH"], removeLabelIds: ["INBOX"] },
       {
@@ -197,15 +231,13 @@ export default function EmailPage() {
 
   const handlePermanentDelete = () => {
     if (!activeId) return
+    optimisticRemove(activeId)
+    setActiveId(null)
+    setActiveThreadId(null)
     deleteMsg.mutate(
       { id: activeId },
       {
-        onSuccess: () => {
-          toast.success("Email permanently deleted")
-          refetch()
-          setActiveId(null)
-          setActiveThreadId(null)
-        },
+        onSuccess: () => toast.success("Email permanently deleted"),
       }
     )
   }
@@ -237,9 +269,14 @@ export default function EmailPage() {
   }
 
   const handleBulkTrash = () => {
+    const ids = Array.from(selectedIds)
+    setSelectedIds(new Set())
+    for (const id of ids) optimisticRemove(id)
+    setActiveId(null)
+    setActiveThreadId(null)
+
     let count = 0
     let hasError = false
-    const ids = Array.from(selectedIds)
     if (isTrash) {
       for (const id of ids) {
         deleteMsg.mutate(
@@ -250,9 +287,6 @@ export default function EmailPage() {
               if (count === ids.length) {
                 if (!hasError)
                   toast.success(`${ids.length} emails permanently deleted`)
-                refetch()
-                setActiveId(null)
-                setActiveThreadId(null)
               }
             },
             onError: () => {
@@ -284,7 +318,6 @@ export default function EmailPage() {
         )
       }
     }
-    setSelectedIds(new Set())
   }
 
   const targetMsg =
@@ -403,7 +436,7 @@ export default function EmailPage() {
                 className="flex items-center gap-1 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
               >
                 <Trash2 className="size-3.5" />{" "}
-                {isTrash ? "Delete permanently" : "Delete"}
+                {isTrash ? "Delete" : "Trash"}
               </button>
             </>
           )}
@@ -419,6 +452,7 @@ export default function EmailPage() {
           activeId={activeId}
           selectedIds={selectedIds}
           tokensLength={tokens.length}
+          pageNum={pageNum}
           nextPageToken={nextPageToken}
           messagesCount={messages.length}
           onSelectMessage={handleSelectMessage}

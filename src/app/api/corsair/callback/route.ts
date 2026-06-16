@@ -73,6 +73,26 @@ export async function GET(request: NextRequest) {
             redirectUri: REDIRECT_URI,
         });
 
+        if (result.plugin === "gmail") {
+            const tenant = corsair.withTenant(result.tenantId);
+            const accessToken = await tenant.gmail.keys.get_access_token();
+            if (accessToken) {
+                const topicName = process.env.TOPIC;
+                if (topicName) {
+                    fetch("https://gmail.googleapis.com/gmail/v1/users/me/watch", {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ topicName, labelIds: ["INBOX"] }),
+                    }).catch((e) =>
+                        console.error("[callback] gmail watch failed:", e),
+                    );
+                }
+            }
+        }
+
         const connectAll = request.cookies.get("connect_all")?.value;
 
         if (connectAll === "1") {

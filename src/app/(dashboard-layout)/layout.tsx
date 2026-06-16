@@ -11,6 +11,7 @@ import { Loader } from "~/components/loader"
 import { getSession } from "~/server/better-auth/server"
 import { CorsairGuard } from "~/components/corsair-guard"
 import { Toaster } from "~/components/ui/sonner"
+import { WebhookToaster } from "~/components/webhook-toaster"
 
 export default async function DashboardLayout({
   children,
@@ -50,6 +51,7 @@ export default async function DashboardLayout({
         <SidebarInset className="overflow-hidden bg-[#121317]">
           <Loader />
           <Toaster position="top-right"/>
+          <WebhookToaster/>
           {children}
         </SidebarInset>
       </SidebarProvider>

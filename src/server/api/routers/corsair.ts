@@ -10,6 +10,17 @@ import {
 } from "~/server/api/trpc";
 import { corsairAccounts, corsairIntegrations } from "~/server/db/schema";
 import { InviteEmail } from "~/emails/invite-email";
+import { corsair } from "~/server/corsair";
+import { processWebhook } from "corsair";
+import {
+  buildAgentTools,
+  runStep,
+  executeToolCall,
+  appendToolResult,
+  buildConversation,
+  SYSTEM_PROMPT,
+  SYSTEM_PROMPT_REVIEW,
+} from "~/server/agent-loop";
 
 const CATEGORIES = [
   "CATEGORY_PRIMARY",
@@ -130,7 +141,7 @@ export const corsairRouter = createTRPCRouter({
     }),
 
   listLabels: protectedProcedure.query(async ({ ctx }) => {
-      const res = await ctx.tenant.gmail.api.labels.list({});
+    const res = await ctx.tenant.gmail.api.labels.list({});
     return (res.labels ?? []).map((l: any) => ({
       id: l.id,
       name: l.name,
@@ -253,7 +264,7 @@ export const corsairRouter = createTRPCRouter({
         timeMax: input.timeMax,
         items: [{ id: "primary" }],
       });
-      console.log("res",res)
+      console.log("res", res)
       const busy = res.calendars?.primary?.busy ?? [];
       return { hasConflict: busy.length > 0, busySlots: busy };
     }),
@@ -312,12 +323,14 @@ export const corsairRouter = createTRPCRouter({
         raw: encoded,
         threadId: input.threadId,
       });
-      if (sent.id && input.inviteTitle) {
-        sentInvites.set(sent.id, {
-          title: input.inviteTitle,
-          start: input.inviteStart ?? "",
-          end: input.inviteEnd ?? "",
-        });
+      if (sent.id) {
+        if (input.inviteTitle) {
+          sentInvites.set(sent.id, {
+            title: input.inviteTitle,
+            start: input.inviteStart ?? "",
+            end: input.inviteEnd ?? "",
+          });
+        }
       }
       return { success: true };
     }),
@@ -331,6 +344,7 @@ export const corsairRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const raw = buildRawEmail(input.to, input.subject, input.body ?? "");
       const encoded = Buffer.from(await raw).toString("base64url");
+      console.log(ctx.tenant)
       await ctx.tenant.gmail.api.drafts.create({ draft: { message: { raw: encoded } } });
       return { success: true };
     }),
@@ -338,11 +352,110 @@ export const corsairRouter = createTRPCRouter({
   deleteMessage: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      console.log("Deleting message:", input.id);
-      const result = await ctx.tenant.gmail.api.messages.delete({ id: input.id });
-      console.log("Delete result:", result);
+      await ctx.tenant.gmail.api.messages.delete({ id: input.id });
       return { success: true };
     }),
+
+  chat: {
+    processMessage: protectedProcedure
+      .input(
+        z.object({
+          message: z.string(),
+          reviewMode: z.boolean().default(false),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const tenantCorsair = ctx.tenant;
+        const agentTools = await buildAgentTools(tenantCorsair);
+        const system = input.reviewMode ? SYSTEM_PROMPT_REVIEW : SYSTEM_PROMPT;
+        let conversation = buildConversation(system, [
+          { role: "user", content: input.message },
+        ]);
+
+        for (let step = 0; step < 15; step++) {
+          const result = await runStep(conversation, agentTools);
+
+          if (result.type === "text") {
+            return { type: "text" as const, content: result.content };
+          }
+
+          if (input.reviewMode) {
+            return {
+              type: "tool_call" as const,
+              toolCall: { name: result.name, args: result.args },
+              conversation,
+            };
+          }
+
+          const toolResult = await executeToolCall(
+            agentTools,
+            result.name,
+            result.args,
+          );
+          conversation = appendToolResult(
+            conversation,
+            result.name,
+            result.args,
+            toolResult,
+          );
+        }
+
+        return {
+          type: "text" as const,
+          content: "Reached maximum iterations.",
+        };
+      }),
+
+    executeAction: protectedProcedure
+      .input(
+        z.object({
+          toolName: z.string(),
+          toolArgs: z.any(),
+          conversation: z.string(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const tenantCorsair = ctx.tenant;
+        const agentTools = await buildAgentTools(tenantCorsair);
+
+        const toolResult = await executeToolCall(
+          agentTools,
+          input.toolName,
+          input.toolArgs,
+        );
+        let conversation = appendToolResult(
+          input.conversation,
+          input.toolName,
+          input.toolArgs,
+          toolResult,
+        );
+
+        for (let step = 0; step < 15; step++) {
+          const result = await runStep(conversation, agentTools);
+
+          if (result.type === "text") {
+            return { type: "text" as const, content: result.content };
+          }
+
+          const nextResult = await executeToolCall(
+            agentTools,
+            result.name,
+            result.args,
+          );
+          conversation = appendToolResult(
+            conversation,
+            result.name,
+            result.args,
+            nextResult,
+          );
+        }
+
+        return {
+          type: "text" as const,
+          content: "Reached maximum iterations.",
+        };
+      }),
+  },
 
 });
 

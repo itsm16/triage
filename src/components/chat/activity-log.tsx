@@ -1,81 +1,171 @@
 "use client"
 
-const logs = [
-  { time: "14:32:01", status: "SUCCESS", label: "CAL_QUERY_EXEC", detail: "Cross-referenced user_cal_01 and peer_cal_john_doe for conflict resolution." },
-  { time: "14:32:05", status: "SUCCESS", label: "MAIL_DISPATCH", detail: "Invite sent via SMTP relay. Thread ID: PHOENIX_M_2991." },
-  { time: "14:30:45", status: "INFO", label: "AUTO_SUMMARIZE", detail: "Background indexing of 14 new unread emails completed." },
-]
+import { useEffect, useRef } from "react"
+import { CheckCircle, XCircle, Loader2, X } from "lucide-react"
+import { useChatStore, type LogEntry, type LogStatus } from "~/lib/chat-store"
 
-const context = [
-  { label: "Project", value: "Phoenix" },
-  { label: "Priority", value: "High" },
-  { label: "Tokens", value: "4.2k/32k" },
-]
+function DotIcon({ status }: { status: LogStatus }) {
+  switch (status) {
+    case "RUNNING": return <Loader2 size={10} className="animate-spin text-[#0d0e12]" />
+    case "SUCCESS": return <CheckCircle size={10} className="text-[#0d0e12]" />
+    case "ERROR": return <XCircle size={10} className="text-white" />
+    default: return null
+  }
+}
+
+function dotFill(status: LogStatus): string {
+  switch (status) {
+    case "SUCCESS": return "bg-[#b6c4ff]"
+    case "RUNNING": return "bg-[#b6c4ff]"
+    case "ERROR": return "bg-red-400"
+    default: return "bg-[#434656]"
+  }
+}
+
+function dotBorderCls(status: LogStatus): string {
+  switch (status) {
+    case "RUNNING": return "border-[#b6c4ff]"
+    default: return "border-[#0d0e12]"
+  }
+}
+
+function OperationItem({
+  log,
+  stemActive,
+  tailActive,
+  isLast,
+}: {
+  log: LogEntry
+  stemActive: boolean
+  tailActive: boolean
+  isLast: boolean
+}) {
+  const removeLog = useChatStore((s) => s.removeLog)
+  const isColored = log.status === "SUCCESS" || log.status === "RUNNING"
+  const isError = log.status === "ERROR"
+
+  function overlayCls(active: boolean) {
+    return isError ? "bg-red-400 opacity-100" : active ? "bg-[#b6c4ff] opacity-100" : "opacity-0"
+  }
+
+  return (
+    <div className="group relative pb-12 last:pb-0">
+      {/* Stem — gray line from top through the dot */}
+      <div className="absolute left-0 top-0 w-[2px] h-5 bg-[#434656]/40" />
+      <div
+        className={`absolute left-0 top-0 w-[2px] h-5 transition-opacity duration-[1500ms] ease-linear ${overlayCls(stemActive)}`}
+      />
+
+      {/* Tail — gray connector from below dot to next item's top */}
+      {!isLast && (
+        <>
+          <div className="absolute left-0 top-5 w-[2px] bottom-0 bg-[#434656]/40" />
+          <div
+            className={`absolute left-0 top-5 w-[2px] bottom-0 transition-opacity duration-[1500ms] ease-linear ${overlayCls(tailActive)}`}
+          />
+        </>
+      )}
+
+      {/* Dot */}
+      <div
+        className={`absolute left-[-7px] top-[3px] z-10 flex size-4 items-center justify-center rounded-full border-2 transition-all duration-1000 ease-in-out ${dotBorderCls(log.status)} ${dotFill(log.status)}`}
+      >
+        <DotIcon status={log.status} />
+      </div>
+
+      {/* Content */}
+      <div className="pl-5 pt-[3px]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className={`font-mono text-[8px] uppercase transition-colors duration-1000 ease-in-out ${
+              isColored ? "text-[#b6c4ff]" : isError ? "text-red-400" : "text-[#8d90a2]"
+            }`}>
+              {log.status}
+            </span>
+            <span className={`font-mono text-[10px] transition-colors duration-1000 ease-in-out ${
+              isColored ? "text-[#b6c4ff]" : isError ? "text-red-400" : "text-[#8d90a2]"
+            }`}>
+              {log.time}
+            </span>
+          </div>
+          <button
+            onClick={() => removeLog(log.id)}
+            className="opacity-0 transition-opacity group-hover:opacity-100 rounded p-0.5 text-[#8d90a2] hover:bg-[#292a2e] hover:text-[#e3e2e7]"
+          >
+            <X size={10} />
+          </button>
+        </div>
+          <p className={`mt-0.5 text-[11px] font-medium transition-colors duration-1000 ease-in-out ${isColored ? "text-[#e3e2e7]" : "text-[#8d90a2]"} ${log.status === "RUNNING" ? "animate-pulse-gentle" : ""}`}>
+          {log.label}
+        </p>
+        {log.detail && (
+          <p className="mt-0.5 font-mono text-[9px] leading-relaxed text-[#c3c5d9]/70 line-clamp-2">{log.detail}</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function ActivityLog() {
+  const logs = useChatStore((s) => s.logs)
+  const logEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [logs])
+
+  // Frontier: last non-PENDING item — blue fills from top to here
+  let lastActiveIdx = -1
+  if (logs) {
+    for (let i = logs.length - 1; i >= 0; i--) {
+      if (logs[i]?.status !== "PENDING") {
+        lastActiveIdx = i
+        break
+      }
+    }
+  }
+
   return (
-    <aside className="hidden w-80 flex-col border-l border-[#434656]/20 bg-[#0d0e12] lg:flex">
-      <div className="border-b border-[#434656]/10 p-6">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-mono text-xs font-medium uppercase tracking-[0.05em] text-[#8d90a2]">
-            Activity Log
+    <aside className="hidden w-72 flex-col border-l border-[#434656]/20 bg-[#0d0e12] lg:flex h-screen overflow-y-auto">
+      <div className="border-b border-[#434656]/10 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono text-[10px] font-medium uppercase tracking-[0.05em] text-[#8d90a2]">
+            Operations
           </h2>
-          <span className="flex size-2 animate-pulse rounded-full bg-[#b6c4ff]" />
+          <span
+            className={`flex size-2 rounded-full ${logs.some(l => l.status === "RUNNING") ? "animate-pulse bg-[#b6c4ff]" : logs.length > 0 ? "bg-[#b6c4ff]/60" : "bg-[#434656]/40"}`}
+          />
         </div>
-        <p className="text-sm text-[#c3c5d9]">Real-time execution status</p>
+        <p className="mt-0.5 text-[10px] text-[#c3c5d9]/60">Real-time execution log</p>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto p-6">
-        {logs.map((log) => (
-          <div key={log.time} className="relative border-l border-[#434656]/30 pl-6">
+      <div className="flex-1 overflow-y-auto px-4 py-5">
+        {logs.length === 0 ? (
+          <div className="py-10 text-center text-[10px] text-[#8d90a2]">No operations yet</div>
+        ) : (
+          <div className="relative">
+            {/* Top cap — line only, no dot, aligned left-0 with item lines */}
+            <div className="absolute left-0 top-0 w-[2px] h-[43px] bg-[#434656]/40" />
             <div
-              className={`absolute left-[-5px] top-1 size-2.5 rounded-full ${
-                log.status === "SUCCESS" ? "bg-[#b6c4ff]" : "bg-[#434656]/30"
+              className={`absolute left-0 top-0 w-[2px] h-[43px] transition-opacity duration-[1500ms] ease-linear ${
+                lastActiveIdx >= 0 ? "bg-[#b6c4ff] opacity-100" : "opacity-0"
               }`}
             />
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span
-                  className={`font-mono text-[11px] ${
-                    log.status === "SUCCESS" ? "text-[#b6c4ff]" : "text-[#8d90a2]"
-                  }`}
-                >
-                  {log.time}
-                </span>
-                <span className="font-mono text-[10px] text-[#8d90a2]">
-                  {log.status}
-                </span>
-              </div>
-              <p className="text-sm text-[#e3e2e7]">{log.label}</p>
-              <p className="font-mono text-[10px] leading-relaxed text-[#c3c5d9]/70">
-                {log.detail}
-              </p>
+
+            <div className="pt-[40px]">
+              {logs.map((log, i) => (
+                <OperationItem
+                  key={log.id}
+                  log={log}
+                  stemActive={i <= lastActiveIdx}
+                  tailActive={i + 1 <= lastActiveIdx}
+                  isLast={i === logs.length - 1}
+                />
+              ))}
+              <div ref={logEndRef} />
             </div>
           </div>
-        ))}
-
-        <div className="mt-8 rounded-xl border border-[#434656]/10 bg-[#1e1f23] p-4">
-          <h3 className="mb-3 font-mono text-[11px] text-[#8d90a2]">
-            CURRENT CONTEXT
-          </h3>
-          <div className="space-y-3">
-            {context.map((c) => (
-              <div key={c.label} className="flex items-center justify-between">
-                <span className="text-sm text-[#c3c5d9]">{c.label}</span>
-                <span className="font-mono text-xs text-[#b6c4ff]">{c.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-[#434656]/10 bg-[#1a1b1f] p-6">
-        <div className="flex items-center gap-3">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#434656]/20">
-            <div className="h-full w-3/4 rounded-full bg-[#b6c4ff]" />
-          </div>
-          <span className="font-mono text-[10px] text-[#8d90a2]">STORAGE: 74%</span>
-        </div>
+        )}
       </div>
     </aside>
   )

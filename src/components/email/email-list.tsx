@@ -17,6 +17,7 @@ interface EmailListProps {
   activeId: string | null
   selectedIds: Set<string>
   tokensLength: number
+  pageNum: number
   nextPageToken: string | null | undefined
   messagesCount: number
   onSelectMessage: (id: string, threadId: string) => void
@@ -33,6 +34,7 @@ export function EmailList({
   activeId,
   selectedIds,
   tokensLength,
+  pageNum,
   nextPageToken,
   messagesCount,
   onSelectMessage,
@@ -65,21 +67,26 @@ export function EmailList({
   return (
     <section className="sticky top-0 flex w-[420px] shrink-0 flex-col border-r border-[#434656]/10 bg-[#0d0e12] h-full border">
       <div className="flex items-center justify-between border-b border-[#434656]/10 px-4 py-3">
-        <button
-          onClick={onGoPrev}
-          disabled={tokensLength === 0}
-          className="flex items-center gap-1 text-sm text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <ChevronLeft className="size-4" /> Prev
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onGoPrev}
+            disabled={tokensLength === 0}
+            className="flex items-center justify-center rounded p-1 text-sm text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <span className="min-w-[20px] text-center text-xs font-medium text-[#c3c5d9]">
+            {pageNum}
+          </span>
+          <button
+            onClick={onGoNext}
+            disabled={!nextPageToken}
+            className="flex items-center justify-center rounded p-1 text-sm text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
         <span className="text-xs text-[#434656]">{messagesCount} emails</span>
-        <button
-          onClick={onGoNext}
-          disabled={!nextPageToken}
-          className="flex items-center gap-1 text-sm text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-30 disabled:pointer-events-none"
-        >
-          Next <ChevronRight className="size-4" />
-        </button>
       </div>
 
       <div className="flex items-center gap-2 border-b border-[#434656]/10 px-4 py-1.5">

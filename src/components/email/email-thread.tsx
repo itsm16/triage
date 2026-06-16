@@ -61,7 +61,7 @@ export function EmailThread({
                 className="flex items-center gap-2 rounded bg-red-500/20 px-3 py-1.5 font-mono text-[11px] text-red-400 transition-colors hover:bg-red-500/30"
               >
                 <AlertTriangle className="size-[18px]" />
-                Delete permanently
+                Delete
               </button>
             ) : (
               <>

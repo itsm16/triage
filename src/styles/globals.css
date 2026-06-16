@@ -7,6 +7,7 @@
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --animate-pulse-gentle: pulse-gentle 2.5s ease-in-out infinite;
 }
 
 @theme inline {
@@ -166,4 +167,25 @@
   display: flex;
   width: 200%;
   animation: marquee-scroll 30s linear infinite;
+}
+
+/* Thin custom scrollbar across the app */
+*::-webkit-scrollbar {
+  width: 3px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(67 70 86 / 0.5);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Gentle smooth pulse for RUNNING log labels */
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-pulse-gentle {
+  animation: pulse-gentle 2.5s ease-in-out infinite;
 }

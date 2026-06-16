@@ -10,6 +10,7 @@
 rough.txt
 setup.md
 learnings.md
+.opencode
 
 # database
 /prisma/db.sqlite
