@@ -11,6 +11,18 @@ import {
   SYSTEM_PROMPT_REVIEW,
 } from "~/server/agent-loop";
 
+interface ApprovedTool {
+  name: string;
+  args: unknown;
+}
+
+interface RequestBody {
+  message?: string;
+  conversation?: string;
+  reviewMode?: boolean;
+  approvedTool?: ApprovedTool;
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({
     headers: req.headers,
@@ -19,7 +31,7 @@ export async function POST(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const body = await req.json();
+  const body = (await req.json()) as RequestBody;
   const {
     message,
     conversation: existingConversation,
@@ -34,7 +46,7 @@ export async function POST(req: NextRequest) {
   if (approvedTool) {
     const result = await executeToolCall(tools, approvedTool.name, approvedTool.args);
     conversation = appendToolResult(
-      existingConversation,
+      existingConversation ?? "",
       approvedTool.name,
       approvedTool.args,
       result,
@@ -46,7 +58,7 @@ export async function POST(req: NextRequest) {
   } else {
     conversation = buildConversation(
       reviewMode ? SYSTEM_PROMPT_REVIEW : SYSTEM_PROMPT,
-      [{ role: "user", content: message }],
+      [{ role: "user", content: message ?? "" }],
     );
   }
 
@@ -61,7 +73,7 @@ export async function POST(req: NextRequest) {
       try {
         for (let step = 0; step < 15; step++) {
           let fullText = "";
-          let toolCall: { name: string; args: any } | null = null;
+          let toolCall: { name: string; args: unknown } | null = null;
 
           for await (const event of streamStep(conversation, tools)) {
             if (event.type === "token") {

@@ -18,7 +18,7 @@ export function NavProjects({
     icon: React.ReactNode
   }[]
 }) {
-  const { isMobile } = useSidebar()
+  useSidebar()
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">

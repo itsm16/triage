@@ -12,7 +12,7 @@ export default function DashboardLoading() {
             <div className="rounded-xl border border-[#434656]/10 bg-[#1a1b1f] p-6">
               <div className="mb-4 h-5 w-36 animate-pulse rounded bg-[#292a2e]" />
               <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
+                {Array.from({length: 3}).map((_, i) => (
                   <div key={i} className="h-16 animate-pulse rounded-lg bg-[#121317]" />
                 ))}
               </div>
@@ -20,7 +20,7 @@ export default function DashboardLoading() {
             <div className="rounded-xl border border-[#434656]/10 bg-[#1a1b1f] p-6">
               <div className="mb-4 h-5 w-24 animate-pulse rounded bg-[#292a2e]" />
               <div className="space-y-3">
-                {[...Array(2)].map((_, i) => (
+                {Array.from({length: 2}).map((_, i) => (
                   <div key={i} className="h-12 animate-pulse rounded-lg bg-[#121317]" />
                 ))}
               </div>
@@ -28,7 +28,7 @@ export default function DashboardLoading() {
             <div className="rounded-xl border border-[#434656]/10 bg-[#1a1b1f] p-6">
               <div className="mb-4 h-5 w-28 animate-pulse rounded bg-[#292a2e]" />
               <div className="space-y-2">
-                {[...Array(3)].map((_, i) => (
+                {Array.from({length: 3}).map((_, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <div className="mt-1 size-2 animate-pulse rounded-full bg-[#292a2e]" />
                     <div className="flex-1 space-y-1">

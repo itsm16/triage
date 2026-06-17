@@ -39,36 +39,36 @@ function buildPresetNodes(preset?: string): Node[] {
     return [
       {
         id: "trigger_1",
-        type: "default" as const,
+        type: "default",
         position: { x: 100, y: 50 },
-        data: { type: "trigger" as NodeType, label: "Trigger", config: {} },
+        data: { type: "trigger", label: "Trigger", config: {} },
       },
       {
         id: "vars_1",
-        type: "default" as const,
+        type: "default",
         position: { x: 200, y: 250 },
         data: {
-          type: "variables" as NodeType,
+          type: "variables",
           label: "Variables",
           config: { variables: [{ key: "name", value: "" }, { key: "email", value: "" }] },
         },
       },
       {
         id: "tmpl_1",
-        type: "default" as const,
+        type: "default",
         position: { x: 300, y: 450 },
         data: {
-          type: "template" as NodeType,
+          type: "template",
           label: "Template",
           config: { body: "Hi {name},\n\nThis is a test message.\n\nBest regards" },
         },
       },
       {
         id: "email_1",
-        type: "default" as const,
+        type: "default",
         position: { x: 400, y: 650 },
         data: {
-          type: "email" as NodeType,
+          type: "email",
           label: "Send Email",
           config: { to: "{email}", subject: "Hello {name}" },
         },
@@ -78,9 +78,9 @@ function buildPresetNodes(preset?: string): Node[] {
   return [
     {
       id: "trigger_1",
-      type: "default" as const,
+      type: "default",
       position: { x: 250, y: 200 },
-      data: { type: "trigger" as NodeType, label: "Trigger", config: {} },
+      data: { type: "trigger", label: "Trigger", config: {} },
     },
   ]
 }
@@ -115,7 +115,7 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
     id: string
     type: NodeType
     label: string
-    config: Record<string, any>
+    config: Record<string, unknown>
   } | null>(null)
   const animRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -126,11 +126,11 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
 
   useEffect(() => {
     if (workflowData?.nodes) {
-      const loadedNodes = workflowData.nodes.map((n: any) => ({
+      const loadedNodes = workflowData.nodes.map((n: { id: string; positionX: number; positionY: number; type: string; label: string; config: unknown }) => ({
         id: n.id,
         type: "default" as const,
         position: { x: n.positionX, y: n.positionY },
-        data: { type: n.type, label: n.label, config: n.config as Record<string, any> },
+        data: { type: n.type, label: n.label, config: n.config as Record<string, unknown> },
       }))
       setNodes(loadedNodes)
       setEdges(buildChainEdges(loadedNodes))
@@ -141,7 +141,7 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
     setNodes((nds) =>
       nds.map((n) => {
         if (nodeIds && !nodeIds.includes(n.id)) return n
-        const data = n.data as Record<string, any>
+        const data = n.data
         return { ...n, data: { ...data, execState } }
       }),
     )
@@ -267,8 +267,8 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
   )
 
   const onNodeClick = useCallback(
-    (_: any, node: Node) => {
-      const d = node.data as { type: NodeType; label: string; config: Record<string, any> }
+    (_: object, node: Node) => {
+      const d = node.data as { type: NodeType; label: string; config: Record<string, unknown> }
       setSelectedNode({ id: node.id, type: d.type, label: d.label, config: d.config ?? {} })
     },
     [],
@@ -289,11 +289,11 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
   }, [])
 
   const updateNode = useCallback(
-    (id: string, updates: { label?: string; config?: Record<string, any> }) => {
+    (id: string, updates: { label?: string; config?: Record<string, unknown> }) => {
       setNodes((nds) =>
         nds.map((n) => {
           if (n.id !== id) return n
-          const data = n.data as Record<string, any>
+          const data = n.data
           return {
             ...n,
             data: {
@@ -316,7 +316,7 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
     saveNodesMut.mutate({
       workflowId,
       nodes: nodes.map((n) => {
-        const d = n.data as { type: string; label: string; config: Record<string, any> }
+        const d = n.data as { type: string; label: string; config: Record<string, unknown> }
         return {
           id: n.id,
           type: d.type,
@@ -341,14 +341,14 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
     if (isOneTime) {
       executeOnceMut.mutate({
         nodes: nodes.map((n) => {
-          const d = n.data as { type: string; config: Record<string, any> }
+          const d = n.data as { type: string; config: Record<string, unknown> }
           return { id: n.id, type: d.type, config: d.config ?? {} }
         }),
       })
     } else {
       save()
       setTimeout(() => {
-        executeMut.mutate({ workflowId: workflowId! })
+        executeMut.mutate({ workflowId })
       }, 300)
     }
   }, [nodes, isOneTime, workflowId, save, executeMut, executeOnceMut, resetExecution, setNodesExecState, setEdgeActive])

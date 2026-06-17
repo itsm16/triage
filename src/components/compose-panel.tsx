@@ -81,8 +81,8 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
   const sendMsg = api.corsair.sendMessage.useMutation({
     onSuccess: () => {
       toast.success("Message sent")
-      utils.corsair.listMessages.invalidate()
-      utils.corsair.getThread.invalidate()
+      void utils.corsair.listMessages.invalidate()
+      void utils.corsair.getThread.invalidate()
       close(instance.id)
     },
     onError: () => toast.error("Failed to send message"),
@@ -90,7 +90,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
   const saveDraft = api.corsair.saveDraft.useMutation({
     onSuccess: () => {
       toast.success("Draft saved")
-      utils.corsair.listMessages.invalidate()
+      void utils.corsair.listMessages.invalidate()
       close(instance.id)
     },
     onError: () => toast.error("Failed to save draft"),
@@ -104,7 +104,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
       subject: instance.formData.subject,
       body: instance.formData.body,
       threadId: instance.replyTo?.threadId,
-      inviteTitle: instance.formData.includeInvite ? instance.formData.inviteTitle || instance.formData.subject : undefined,
+      inviteTitle: instance.formData.includeInvite ? instance.formData.inviteTitle ?? instance.formData.subject : undefined,
       inviteStart: instance.formData.includeInvite ? instance.formData.inviteStart : undefined,
       inviteEnd: instance.formData.includeInvite ? instance.formData.inviteEnd : undefined,
     })
@@ -256,7 +256,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                   e.preventDefault()
-                  handleSend()
+                  void handleSend()
                 }
               }}
               className="min-h-[320px] flex-1 resize-none bg-transparent text-sm text-[#e3e2e7] placeholder-[#8d90a2] outline-none"
@@ -298,7 +298,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
               <div>
                 <label className="mb-1 block text-[10px] font-medium text-[#8d90a2] uppercase tracking-wider">Title</label>
                 <input
-                  value={instance.formData.inviteTitle || ""}
+                  value={instance.formData.inviteTitle ?? ""}
                   onChange={(e) => updateFormData(instance.id, { inviteTitle: e.target.value })}
                   className="w-full rounded border border-[#434656]/20 bg-[#1a1b1f] px-2 py-1.5 text-xs text-[#e3e2e7] outline-none focus:border-[#b6c4ff]/30"
                   placeholder="Event title"
@@ -309,7 +309,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
                 <label className="mb-1 block text-[10px] font-medium text-[#8d90a2] uppercase tracking-wider">Start</label>
                 <input
                   type="datetime-local"
-                  value={instance.formData.inviteStart || ""}
+                  value={instance.formData.inviteStart ?? ""}
                   onChange={(e) => updateFormData(instance.id, { inviteStart: e.target.value })}
                   className="w-full rounded border border-[#434656]/20 bg-[#1a1b1f] px-2 py-1.5 text-xs text-[#e3e2e7] outline-none focus:border-[#b6c4ff]/30"
                 />
@@ -318,7 +318,7 @@ function ComposeModal({ instance, index }: { instance: ComposeInstance; index: n
                 <label className="mb-1 block text-[10px] font-medium text-[#8d90a2] uppercase tracking-wider">End</label>
                 <input
                   type="datetime-local"
-                  value={instance.formData.inviteEnd || ""}
+                  value={instance.formData.inviteEnd ?? ""}
                   onChange={(e) => updateFormData(instance.id, { inviteEnd: e.target.value })}
                   className="w-full rounded border border-[#434656]/20 bg-[#1a1b1f] px-2 py-1.5 text-xs text-[#e3e2e7] outline-none focus:border-[#b6c4ff]/30"
                 />

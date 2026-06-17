@@ -5,11 +5,8 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
   Bell,
   History,
-  Inbox,
   Search,
   Trash2,
-  Tag,
-  AtSign,
   X,
 } from "lucide-react"
 import { api } from "~/trpc/react"
@@ -18,15 +15,6 @@ import { toast } from "sonner"
 import { useComposeStore } from "~/lib/compose-store"
 import { EmailList } from "~/components/email/email-list"
 import { EmailThread } from "~/components/email/email-thread"
-
-const CATEGORIES = [
-  { id: undefined, label: "All", icon: Inbox },
-  { id: "CATEGORY_PRIMARY", label: "Primary", icon: Inbox },
-  { id: "CATEGORY_SOCIAL", label: "Social", icon: AtSign },
-  { id: "CATEGORY_PROMOTIONS", label: "Promotions", icon: Tag },
-  { id: "CATEGORY_UPDATES", label: "Updates", icon: Bell },
-  { id: "CATEGORY_FORUMS", label: "Forums", icon: Bell },
-]
 
 const TAB_TO_CATEGORY: Record<string, string> = {
   primary: "INBOX",
@@ -51,8 +39,8 @@ function parseSearch(
   input: string,
   currentCategory: string | undefined
 ): { labelIds: string[] | undefined; query: string } {
-  const match = input.match(/:(\w+)/)
-  if (match && match[1] && match.index != null) {
+  const match = /:(\w+)/.exec(input)
+  if (match?.[1] != null && match?.index != null) {
     const mod = match[1].toLowerCase()
     const before = input.slice(0, match.index).trimEnd()
     const after = input.slice(match.index + match[0].length).trimStart()
@@ -326,14 +314,15 @@ export default function EmailPage() {
 
   const handleConvertToMeeting = () => {
     if (!targetMsg) return
+    const msg = targetMsg as { subject?: string; from?: string; snippet?: string }
     const start = new Date()
     start.setHours(start.getHours() + 1, 0, 0, 0)
     const end = new Date(start)
     end.setHours(end.getHours() + 1)
     createEvent.mutate(
       {
-        summary: targetMsg.subject || "Meeting",
-        description: `From email: ${targetMsg.subject}\nFrom: ${targetMsg.from}\n\n${targetMsg.snippet}`,
+        summary: msg.subject ?? "Meeting",
+        description: `From email: ${msg.subject ?? ""}\nFrom: ${msg.from ?? ""}\n\n${msg.snippet ?? ""}`,
         start: { dateTime: start.toISOString() },
         end: { dateTime: end.toISOString() },
       },
@@ -347,12 +336,14 @@ export default function EmailPage() {
   const handleReply = () => {
     const target =
       (threadMessages.find((m) => m.id === activeId) ??
-        threadMessages[threadMessages.length - 1])!
+        threadMessages[threadMessages.length - 1]) as
+        { from: string; subject: string; id: string; threadId: string } | undefined
+    if (!target) return
     openCompose("reply", {
       from: target.from,
       subject: target.subject,
-      emailId: target.id!,
-      threadId: target.threadId!,
+      emailId: target.id,
+      threadId: target.threadId,
     })
   }
 
@@ -378,8 +369,8 @@ export default function EmailPage() {
         setTokens([])
         return
       }
-      const match = val.match(/^:(\w+)\s/)
-      if (match && match[1] && KNOWN_MODIFIERS.has(match[1].toLowerCase())) {
+      const match = /^:(\w+)\s/.exec(val)
+      if (match?.[1] != null && KNOWN_MODIFIERS.has(match[1].toLowerCase())) {
         const rest = val.slice(match[0].length)
         e.preventDefault()
         setSearchInput(rest)

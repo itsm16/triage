@@ -1,5 +1,4 @@
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
-import { corsair } from "../corsair";
 import { corsairRouter } from "./routers/corsair";
 import { workflowRouter } from "./routers/workflow";
 

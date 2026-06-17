@@ -31,13 +31,13 @@ export default function CalendarPage() {
   const defaultForm = { title: "", description: "", startDate: "", startTime: "", endDate: "", endTime: "" }
 
   const createEvent = api.corsair.createEvent.useMutation({
-    onSuccess: () => { refetch(); setShowForm(false); setFormData(defaultForm); toast.success("Event created") },
+    onSuccess: () => { void refetch(); setShowForm(false); setFormData(defaultForm); toast.success("Event created") },
   })
   const updateEvent = api.corsair.updateEvent.useMutation({
-    onSuccess: () => { refetch(); toast.success("Event updated") },
+    onSuccess: () => { void refetch(); toast.success("Event updated") },
   })
   const deleteEvent = api.corsair.deleteEvent.useMutation({
-    onSuccess: () => { refetch(); toast.success("Event deleted") },
+    onSuccess: () => { void refetch(); toast.success("Event deleted") },
   })
 
   useEffect(() => { setLoading(isLoading); return () => setLoading(false) }, [isLoading, setLoading])
@@ -78,7 +78,7 @@ export default function CalendarPage() {
     const end = info.event.end ?? new Date(start.getTime() + 3600000)
     setFormData({
       title: info.event.title,
-      description: info.event.extendedProps.description ?? "",
+      description: (info.event.extendedProps as { description?: string }).description ?? "",
       startDate: fmtDate(start),
       startTime: fmtTime(start),
       endDate: fmtDate(end),

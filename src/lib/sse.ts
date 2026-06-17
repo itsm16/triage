@@ -28,11 +28,11 @@ export function pushEvent(userId: string, event: string, data: unknown) {
   const userClients = clients.get(userId);
   if (!userClients) return;
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const { controller, encoder } of userClients) {
+  for (const client of userClients) {
     try {
-      controller.enqueue(encoder.encode(message));
+      client.controller.enqueue(client.encoder.encode(message));
     } catch {
-      userClients.delete({ controller, encoder } as SSEController);
+      userClients.delete(client);
     }
   }
 }

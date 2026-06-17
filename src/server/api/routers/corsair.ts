@@ -10,8 +10,6 @@ import {
 } from "~/server/api/trpc";
 import { chatLogs, corsairAccounts, corsairIntegrations } from "~/server/db/schema";
 import { InviteEmail } from "~/emails/invite-email";
-import { corsair } from "~/server/corsair";
-import { processWebhook } from "corsair";
 import {
   buildAgentTools,
   runStep,
@@ -22,13 +20,12 @@ import {
   SYSTEM_PROMPT_REVIEW,
 } from "~/server/agent-loop";
 
-const CATEGORIES = [
-  "CATEGORY_PRIMARY",
-  "CATEGORY_SOCIAL",
-  "CATEGORY_PROMOTIONS",
-  "CATEGORY_UPDATES",
-  "CATEGORY_FORUMS",
-] as const;
+interface MessagePart {
+  mimeType?: string;
+  body?: { data?: string };
+  parts?: MessagePart[];
+  filename?: string;
+}
 
 const sentInvites = new Map<string, { title: string; start: string; end: string }>();
 
@@ -63,9 +60,9 @@ export const corsairRouter = createTRPCRouter({
       id: m.id,
       threadId: m.threadId,
       snippet: m.snippet,
-      subject: extractHeader(m, "Subject") || "(no subject)",
-      from: extractHeader(m, "From") || "",
-      date: extractHeader(m, "Date") || "",
+      subject: extractHeader(m, "Subject") ?? "(no subject)",
+      from: extractHeader(m, "From") ?? "",
+      date: extractHeader(m, "Date") ?? "",
     }));
   }),
 
@@ -95,9 +92,9 @@ export const corsairRouter = createTRPCRouter({
           id: m.id,
           threadId: m.threadId,
           snippet: m.snippet,
-          subject: extractHeader(m, "Subject") || "(no subject)",
-          from: extractHeader(m, "From") || "",
-          date: extractHeader(m, "Date") || "",
+          subject: extractHeader(m, "Subject") ?? "(no subject)",
+          from: extractHeader(m, "From") ?? "",
+          date: extractHeader(m, "Date") ?? "",
           labelIds: m.labelIds ?? [],
         })),
         nextPageToken: res.nextPageToken ?? null,
@@ -111,7 +108,7 @@ export const corsairRouter = createTRPCRouter({
         id: input.id,
         format: "full",
       });
-      return parseMessage(m);
+      return parseMessage(m as Parameters<typeof parseMessage>[0]);
     }),
 
   getThread: protectedProcedure
@@ -122,7 +119,7 @@ export const corsairRouter = createTRPCRouter({
         format: "full",
       });
       const messages = thread.messages ?? [];
-      return await Promise.all(messages.map((m) => parseMessage(m)));
+      return await Promise.all(messages.map((m) => parseMessage(m as Parameters<typeof parseMessage>[0])));
     }),
 
   modifyMessage: protectedProcedure
@@ -142,7 +139,7 @@ export const corsairRouter = createTRPCRouter({
 
   listLabels: protectedProcedure.query(async ({ ctx }) => {
     const res = await ctx.tenant.gmail.api.labels.list({});
-    return (res.labels ?? []).map((l: any) => ({
+    return (res.labels ?? []).map((l: { id?: string; name?: string; type?: string; messagesTotal?: number; messagesUnread?: number; color?: Record<string, unknown> }) => ({
       id: l.id,
       name: l.name,
       type: l.type,
@@ -221,7 +218,7 @@ export const corsairRouter = createTRPCRouter({
         singleEvents: true,
         orderBy: "startTime",
       });
-      return (res.items ?? []).map((e: any) => ({
+      return (res.items ?? []).map((e: { id?: string; summary?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string }; description?: string }) => ({
         id: e.id,
         title: e.summary ?? "(no title)",
         start: e.start?.dateTime ?? e.start?.date,
@@ -278,7 +275,7 @@ export const corsairRouter = createTRPCRouter({
       description: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const event: any = {};
+      const event: { summary?: string; start?: { dateTime: string; timeZone?: string }; end?: { dateTime: string; timeZone?: string }; description?: string } = {};
       if (input.summary !== undefined) event.summary = input.summary;
       if (input.start !== undefined) event.start = input.start;
       if (input.end !== undefined) event.end = input.end;
@@ -366,16 +363,15 @@ export const corsairRouter = createTRPCRouter({
       time: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const values: Record<string, unknown> = {
+      await ctx.db.insert(chatLogs).values({
         userId: ctx.session.user.id,
         label: input.label,
         detail: input.detail,
         status: input.status,
         operation: input.operation,
         time: input.time,
-      };
-      if (input.id) values.id = input.id;
-      await ctx.db.insert(chatLogs).values(values as any);
+        ...(input.id ? { id: input.id } : {}),
+      });
       return { success: true };
     }),
 
@@ -459,7 +455,7 @@ export const corsairRouter = createTRPCRouter({
       .input(
         z.object({
           toolName: z.string(),
-          toolArgs: z.any(),
+          toolArgs: z.unknown(),
           conversation: z.string(),
         }),
       )
@@ -584,9 +580,9 @@ async function buildRawEmail(
   ].join("\r\n");
 }
 
-async function parseMessage(m: any) {
+async function parseMessage(m: { id: string; threadId: string; snippet: string; labelIds: string[]; payload?: { headers?: Array<{ name: string; value: string }>; mimeType?: string; body?: { data?: string }; filename?: string; parts?: MessagePart[] } }) {
   const headers = m.payload?.headers ?? [];
-  const getHeader = (name: string) => headers.find((h: any) => h.name === name)?.value ?? "";
+  const getHeader = (name: string) => headers.find((h) => h.name === name)?.value ?? "";
 
   const bodyHtml = sanitizeHtml(extractPart(m.payload, "text/html") ?? "");
   const bodyText = extractPart(m.payload, "text/plain");
@@ -612,17 +608,18 @@ async function parseMessage(m: any) {
       return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:${s.slice(13, 15)}`;
     };
     if (icalData) {
-      inviteTitle = icalData.match(/^SUMMARY(?:(?!:).)*:(.+)$/m)?.[1]?.trim();
-      const startMatch = icalData.match(/^DTSTART(?:;.*)?:(.+)$/m);
-      const endMatch = icalData.match(/^DTEND(?:;.*)?:(.+)$/m);
+      const summaryMatch = /^SUMMARY(?:(?!:).)*:(.+)$/m.exec(icalData);
+      inviteTitle = summaryMatch?.[1]?.trim();
+      const startMatch = /^DTSTART(?:;.*)?:(.+)$/m.exec(icalData);
+      const endMatch = /^DTEND(?:;.*)?:(.+)$/m.exec(icalData);
       if (startMatch) inviteStart = toIso(startMatch[1]!.trim());
       if (endMatch) inviteEnd = toIso(endMatch[1]!.trim());
     }
   }
 
-  if (!inviteTitle && bodyHtml && bodyHtml.match(/calendar|invite|invitation/i)) {
-    inviteTitle = bodyHtml.match(/<h2[^>]*>([^<]+)/i)?.[1]?.trim()
-      ?? bodyHtml.match(/<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)/i)?.[1]?.trim()
+  if (!inviteTitle && /calendar|invite|invitation/i.exec(bodyHtml)) {
+    inviteTitle = /<h2[^>]*>([^<]+)/i.exec(bodyHtml)?.[1]?.trim()
+      ?? /<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)/i.exec(bodyHtml)?.[1]?.trim()
       ?? "(Calendar)";
   }
 
@@ -672,7 +669,7 @@ function decodeBase64(data: string): string {
 }
 
 function extractPart(
-  part: { mimeType?: string; body?: { data?: string }; parts?: any[]; filename?: string } | undefined,
+  part: { mimeType?: string; body?: { data?: string }; parts?: MessagePart[]; filename?: string } | undefined,
   targetMime: string,
   targetFilename?: string,
 ): string | null {

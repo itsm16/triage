@@ -57,7 +57,7 @@ function ActionBadge({
   )
 }
 
-function ConfirmationBox({ conf, messageId }: { conf: ConfirmationItem; messageId: string }) {
+function ConfirmationBox({ conf, messageId: _messageId }: { conf: ConfirmationItem; messageId: string }) {
   const [resolved, setResolved] = useState(false)
   const addLog = useChatStore((s) => s.addLog)
 
@@ -106,7 +106,7 @@ function LoadingDots() {
   )
 }
 
-function InputRequest({ messageId, onSubmit }: { messageId: string; onSubmit: (text: string) => void }) {
+function InputRequest({ messageId: _messageId, onSubmit }: { messageId: string; onSubmit: (text: string) => void }) {
   const [value, setValue] = useState("")
 
   const handleSubmit = useCallback(() => {
@@ -157,10 +157,10 @@ function renderContent(content: string) {
   return parts.map((part, i) => {
     if (part.type === "emails") {
       const emails = part.content.split("\n").filter(Boolean).map((line) => {
-        const sub = line.match(/Subject:\s*"([^"]+)"/)?.[1] ?? ""
-        const from = line.match(/From:\s*([^\s—–-]+)/)?.[1] ?? ""
-        const snippet = line.match(/Snippet:\s*(.+)/)?.[1] ?? undefined
-        const msgMatch = line.match(/ID:\s*(\S+)/)
+        const sub = (/Subject:\s*"([^"]+)"/.exec(line))?.[1] ?? ""
+        const from = (/From:\s*([^\s—–-]+)/.exec(line))?.[1] ?? ""
+        const snippet = (/Snippet:\s*(.+)/.exec(line))?.[1] ?? undefined
+        const msgMatch = /ID:\s*(\S+)/.exec(line)
         return { subject: sub, from, snippet, messageId: msgMatch?.[1] }
       })
 

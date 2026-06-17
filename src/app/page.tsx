@@ -8,8 +8,8 @@ import {
   Terminal,
   Zap,
 } from "lucide-react"
+import Image from "next/image"
 import { Button } from "~/components/ui/button"
-import { Input } from "~/components/ui/input"
 import { DropletField } from "~/components/droplet-field"
 import { TypingText } from "~/components/typing-text"
 
@@ -20,7 +20,7 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.svg" alt="Triage" className="size-7" />
+              <Image src="/logo.svg" alt="Triage" width={28} height={28} className="size-7" />
               <span className="font-mono text-xs font-medium uppercase tracking-[0.05em] text-white cursor-pointer">
                 Triage
               </span>

@@ -1,3 +1,4 @@
+import Image from "next/image"
 import { redirect } from "next/navigation"
 import { DropletField } from "~/components/droplet-field"
 import { getSession } from "~/server/better-auth/server"
@@ -17,7 +18,7 @@ export default async function AuthLayout({
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-12 text-center">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-[#0055ff]">
-              <img src="/logo.svg" alt="Triage" className="size-8" />
+              <Image src="/logo.svg" alt="Triage" width={32} height={32} className="size-8" />
             </div>
             <span className="text-2xl font-bold text-white">Triage</span>
           </div>

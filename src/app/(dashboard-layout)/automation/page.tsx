@@ -24,11 +24,11 @@ export default function AutomationPage() {
 
   const { data: flows, refetch } = api.workflow.list.useQuery()
   const createMut = api.workflow.create.useMutation({
-    onSuccess: () => { refetch(); toast.success("Flow created") },
+    onSuccess: () => { void refetch(); toast.success("Flow created") },
     onError: (e) => toast.error(e.message),
   })
   const deleteMut = api.workflow.delete.useMutation({
-    onSuccess: () => { refetch(); toast.success("Flow deleted") },
+    onSuccess: () => { void refetch(); toast.success("Flow deleted") },
     onError: (e) => toast.error(e.message),
   })
 

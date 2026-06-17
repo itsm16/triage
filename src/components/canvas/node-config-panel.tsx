@@ -4,14 +4,14 @@ import { NODE_DEF_MAP, type NodeType } from "./node-types"
 import { api } from "~/trpc/react"
 
 interface NodeConfigPanelProps {
-  node: { id: string; type: NodeType; label: string; config: Record<string, any> } | null
-  onUpdate: (id: string, updates: { label?: string; config?: Record<string, any> }) => void
+  node: { id: string; type: NodeType; label: string; config: Record<string, unknown> } | null
+  onUpdate: (id: string, updates: { label?: string; config?: Record<string, unknown> }) => void
   onClose: () => void
 }
 
 export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProps) {
   const [label, setLabel] = useState("")
-  const [config, setConfig] = useState<Record<string, any>>({})
+  const [config, setConfig] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     if (node) {
@@ -25,7 +25,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProp
   const def = NODE_DEF_MAP[node.type]
   const Icon = def?.icon
 
-  const update = (key: string, value: any) => {
+  const update = (key: string, value: unknown) => {
     const next = { ...config, [key]: value }
     setConfig(next)
     onUpdate(node.id, { label, config: next })
@@ -90,10 +90,10 @@ function VariablesConfig({
   config,
   onUpdate,
 }: {
-  config: Record<string, any>
-  onUpdate: (key: string, value: any) => void
+  config: Record<string, unknown>
+  onUpdate: (key: string, value: unknown) => void
 }) {
-  const vars: Array<{ key: string; value: string }> = config.variables ?? []
+  const vars: Array<{ key: string; value: string }> = (config.variables as Array<{ key: string; value: string }> | undefined) ?? []
 
   const setVars = (variables: Array<{ key: string; value: string }>) => {
     onUpdate("variables", variables)
@@ -148,8 +148,8 @@ function BodyConfig({
   onUpdate,
 }: {
   nodeType: string
-  config: Record<string, any>
-  onUpdate: (key: string, value: any) => void
+  config: Record<string, unknown>
+  onUpdate: (key: string, value: unknown) => void
 }) {
   return (
     <div>
@@ -157,7 +157,7 @@ function BodyConfig({
         {nodeType === "template" ? "Template Body" : "Body"}
       </label>
       <textarea
-        value={config.body ?? ""}
+        value={(config.body as string) ?? ""}
         onChange={(e) => onUpdate("body", e.target.value)}
         rows={6}
         placeholder={nodeType === "template" ? "Write template with {variable} references..." : "Email body..."}
@@ -171,15 +171,15 @@ function EmailConfig({
   config,
   onUpdate,
 }: {
-  config: Record<string, any>
-  onUpdate: (key: string, value: any) => void
+  config: Record<string, unknown>
+  onUpdate: (key: string, value: unknown) => void
 }) {
   return (
     <>
       <div>
         <label className="mb-1 block text-xs font-medium text-[#8d90a2]">To</label>
         <input
-          value={config.to ?? ""}
+          value={(config.to as string) ?? ""}
           onChange={(e) => onUpdate("to", e.target.value)}
           placeholder="recipient@example.com"
           className="w-full rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-2 text-sm text-[#e3e2e7] placeholder-[#8d90a2] outline-none focus:border-[#b6c4ff]/30"
@@ -188,7 +188,7 @@ function EmailConfig({
       <div>
         <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Subject</label>
         <input
-          value={config.subject ?? ""}
+          value={(config.subject as string) ?? ""}
           onChange={(e) => onUpdate("subject", e.target.value)}
           placeholder="Subject"
           className="w-full rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-2 text-sm text-[#e3e2e7] placeholder-[#8d90a2] outline-none focus:border-[#b6c4ff]/30"
@@ -202,14 +202,14 @@ function TriggerConfig({
   config,
   onUpdate,
 }: {
-  config: Record<string, any>
-  onUpdate: (key: string, value: any) => void
+  config: Record<string, unknown>
+  onUpdate: (key: string, value: unknown) => void
 }) {
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Event Type</label>
       <select
-        value={config.eventType ?? "manual"}
+        value={(config.eventType as string) ?? "manual"}
         onChange={(e) => onUpdate("eventType", e.target.value)}
         className="w-full rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-2 text-sm text-[#c3c5d9] outline-none focus:border-[#b6c4ff]/30"
       >
@@ -225,14 +225,14 @@ function ListenerConfig({
   config,
   onUpdate,
 }: {
-  config: Record<string, any>
-  onUpdate: (key: string, value: any) => void
+  config: Record<string, unknown>
+  onUpdate: (key: string, value: unknown) => void
 }) {
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Gmail Filter (optional)</label>
       <input
-        value={config.filter ?? ""}
+        value={(config.filter as string) ?? ""}
         onChange={(e) => onUpdate("filter", e.target.value)}
         placeholder='e.g. "from:example.com"'
         className="w-full rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-2 text-sm text-[#e3e2e7] placeholder-[#8d90a2] outline-none focus:border-[#b6c4ff]/30"
@@ -246,8 +246,8 @@ function ReplyConfig({
   config,
   onUpdate,
 }: {
-  config: Record<string, any>
-  onUpdate: (key: string, value: any) => void
+  config: Record<string, unknown>
+  onUpdate: (key: string, value: unknown) => void
 }) {
   const [searchQ, setSearchQ] = useState("")
   const [debounced, setDebounced] = useState("")
@@ -280,8 +280,8 @@ function ReplyConfig({
       {config.selectedEmail && (
         <div className="rounded-lg border border-[#434656]/20 bg-[#1a1b1f] p-3">
           <p className="text-[10px] font-medium text-[#b6c4ff] uppercase tracking-wider">Selected Email</p>
-          <p className="mt-1 text-xs text-[#e3e2e7] truncate">{config.selectedEmail.subject}</p>
-          <p className="text-[10px] text-[#8d90a2] truncate">{config.selectedEmail.from}</p>
+          <p className="mt-1 text-xs text-[#e3e2e7] truncate">{(config.selectedEmail as { subject: string; from: string }).subject}</p>
+          <p className="text-[10px] text-[#8d90a2] truncate">{(config.selectedEmail as { subject: string; from: string }).from}</p>
           <button
             onClick={() => onUpdate("selectedEmail", undefined)}
             className="mt-1 text-[10px] text-red-400 hover:text-red-300"
@@ -295,7 +295,7 @@ function ReplyConfig({
         <div>
           <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Recent Emails</label>
           <div className="space-y-1 max-h-40 overflow-y-auto">
-            {[].map((m: any) => null)}
+            {[].map((_m: unknown) => null)}
             <p className="text-[10px] text-[#8d90a2] py-2 text-center">Type to search emails</p>
           </div>
         </div>

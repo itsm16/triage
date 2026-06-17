@@ -1,29 +1,8 @@
 "use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-
 import { AuthButtons } from "~/components/auth-buttons"
-import { authClient } from "~/server/better-auth/client"
 
 export default function SignInPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    const { error: err } = await authClient.signIn.email({ email, password })
-    if (err) {
-      setError(err.message ?? err.statusText ?? "Something went wrong")
-    } else {
-      router.replace("/dashboard")
-    }
-  }
-
-
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">

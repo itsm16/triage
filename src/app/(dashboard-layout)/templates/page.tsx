@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { FileText, Plus, Search, ChevronDown, MoreHorizontal } from "lucide-react"
+import { FileText, Plus, Search } from "lucide-react"
 import { templates } from "~/lib/templates"
 import { useComposeStore } from "~/lib/compose-store"
 

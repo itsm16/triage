@@ -3,24 +3,24 @@ import { Handle, Position, type NodeProps } from "@xyflow/react"
 import { NODE_DEF_MAP, type NodeType } from "./node-types"
 import { Loader2, AlertTriangle } from "lucide-react"
 
-function configSummary(type: NodeType, config: Record<string, any>): string {
+function configSummary(type: NodeType, config: Record<string, unknown>): string {
   switch (type) {
     case "trigger":
-      return config.eventType ?? "manual"
+      return (config.eventType as string) ?? "manual"
     case "variables": {
-      const vars = config.variables ?? []
+      const vars = (config.variables as Array<unknown>) ?? []
       return vars.length > 0 ? `${vars.length} variable(s)` : "No variables"
     }
     case "template":
-      return config.body ? `${config.body.slice(0, 30)}...` : "No body"
+      return (config.body as string) ? `${(config.body as string).slice(0, 30)}...` : "No body"
     case "email":
-      return config.to ? `To: ${config.to}` : "No recipient"
+      return (config.to as string) ? `To: ${config.to as string}` : "No recipient"
     case "draft":
-      return config.to ? `Draft to: ${config.to}` : "No recipient"
+      return (config.to as string) ? `Draft to: ${config.to as string}` : "No recipient"
     case "listener":
-      return config.filter ? `Filter: ${config.filter}` : "All unread"
+      return (config.filter as string) ? `Filter: ${config.filter as string}` : "All unread"
     case "reply":
-      return config.body ? `${config.body.slice(0, 30)}...` : "No body"
+      return (config.body as string) ? `${(config.body as string).slice(0, 30)}...` : "No body"
     default:
       return ""
   }
@@ -30,7 +30,7 @@ function WorkflowNode({ data, selected }: NodeProps) {
   const { type, label, config, execState } = data as {
     type: NodeType
     label: string
-    config: Record<string, any>
+    config: Record<string, unknown>
     execState?: "running" | "completed" | "error"
   }
   const def = NODE_DEF_MAP[type]

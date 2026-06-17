@@ -1,8 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
+interface CorsairTool {
+  name: string;
+  description?: string;
+  input_schema: {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  run: (args: unknown) => string | Promise<string>;
+}
+
 export interface AgentTools {
-  geminiTools: any;
-  corsairTools: any[];
+  geminiTools: Array<{ functionDeclarations: Array<{ name: string; description: string; parameters: { type: string; properties: Record<string, unknown>; required: string[] } }> }>;
+  corsairTools: CorsairTool[];
 }
 
 export interface StepResult {
@@ -13,7 +23,7 @@ export interface StepResult {
 export interface ToolCallResult {
   type: "tool_call";
   name: string;
-  args: any;
+  args: unknown;
 }
 
 export interface ToolExecResult {
@@ -126,20 +136,23 @@ function isCodeBlocked(code: string): boolean {
   return BLOCKED_PATTERNS.some((p) => code.includes(p));
 }
 
-export async function buildAgentTools(tenantCorsair: any): Promise<AgentTools> {
+export async function buildAgentTools(tenantCorsair: unknown): Promise<AgentTools> {
   const { AnthropicProvider } = await import("@corsair-dev/mcp");
   const provider = new AnthropicProvider();
-  const corsairTools = provider.build({ corsair: tenantCorsair });
+  const corsairTools = provider.build({ corsair: tenantCorsair as Record<string, unknown> }) as CorsairTool[];
 
-  const sanitized = corsairTools.map((tool: any) => {
+  const sanitized: CorsairTool[] = corsairTools.map((tool) => {
     if (tool.name === "run_script") {
       const originalRun = tool.run;
-      tool.run = async (args: any) => {
-        const code = args.code || "";
-        if (isCodeBlocked(code)) {
-          return "Error: delete/trash/destroy operations are blocked and cannot be executed.";
-        }
-        return originalRun(args);
+      return {
+        ...tool,
+        run: async (args: unknown) => {
+          const code = (args as Record<string, unknown>)?.code ?? "";
+          if (typeof code === "string" && isCodeBlocked(code)) {
+            return "Error: delete/trash/destroy operations are blocked and cannot be executed.";
+          }
+          return originalRun(args);
+        },
       };
     }
     return tool;
@@ -148,17 +161,17 @@ export async function buildAgentTools(tenantCorsair: any): Promise<AgentTools> {
   return {
     geminiTools: [
       {
-        functionDeclarations: sanitized.map((tool: any) => ({
+        functionDeclarations: sanitized.map((tool) => ({
           name: tool.name,
           description: tool.description ?? "",
           parameters: {
-            type: "OBJECT",
+            type: "OBJECT" as const,
             properties: tool.input_schema.properties ?? {},
             required: tool.input_schema.required ?? [],
           },
         })),
       },
-    ] as any,
+    ],
     corsairTools: sanitized,
   };
 }
@@ -180,12 +193,13 @@ export async function runStep(
   const response = await ai.models.generateContent({
     model: "gemini-3.1-flash-lite",
     contents: conversation,
-    config: { tools: tools.geminiTools },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    config: { tools: tools.geminiTools as any },
   });
 
-  const functionCall = response.candidates?.[0]?.content?.parts?.find(
-    (p: any) => p.functionCall,
-  )?.functionCall;
+  const functionCall = response.candidates?.[0]?.content?.parts
+    ?.find((p) => p.functionCall)
+    ?.functionCall;
 
   if (!functionCall) {
     return { type: "text", content: response.text ?? "" };
@@ -203,22 +217,23 @@ export async function* streamStep(
   tools: AgentTools,
 ): AsyncGenerator<
   | { type: "token"; content: string }
-  | { type: "tool_call"; name: string; args: any }
+  | { type: "tool_call"; name: string; args: unknown }
 > {
   const stream = await ai.models.generateContentStream({
     model: "gemini-3.1-flash-lite",
     contents: conversation,
-    config: { tools: tools.geminiTools },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    config: { tools: tools.geminiTools as any },
   });
 
-  let functionCall: any = null;
+  let functionCall: { name?: string; args?: Record<string, unknown> } | null = null;
 
   for await (const chunk of stream) {
     const candidate = chunk.candidates?.[0];
     if (!candidate) continue;
     const part = candidate.content?.parts?.[0];
     if (part?.text) {
-      yield { type: "token" as const, content: part.text };
+      yield { type: "token", content: part.text };
     }
     if (part?.functionCall) {
       functionCall = part.functionCall;
@@ -227,7 +242,7 @@ export async function* streamStep(
 
   if (functionCall) {
     yield {
-      type: "tool_call" as const,
+      type: "tool_call",
       name: functionCall.name ?? "",
       args: functionCall.args ?? {},
     };
@@ -237,9 +252,9 @@ export async function* streamStep(
 export async function executeToolCall(
   tools: AgentTools,
   name: string,
-  args: any,
+  args: unknown,
 ): Promise<string> {
-  const tool = tools.corsairTools.find((t: any) => t.name === name);
+  const tool = tools.corsairTools.find((t) => t.name === name);
   if (!tool) throw new Error(`Tool not found: ${name}`);
   return (await tool.run(args)) ?? "";
 }
@@ -247,7 +262,7 @@ export async function executeToolCall(
 export function appendToolResult(
   conversation: string,
   name: string,
-  args: any,
+  args: unknown,
   result: string,
 ): string {
   return `${conversation}\n\nAssistant decided to call tool:\n${JSON.stringify({ name, args }, null, 2)}\n\nTool result:\n${result}\n\nContinue solving the user's request.`;

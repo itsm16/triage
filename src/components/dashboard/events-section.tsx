@@ -34,8 +34,16 @@ function getRange(filter: Filter, now: Date) {
   }
 }
 
-function formatEventTime(start: string, end: string, allDay: boolean): string {
-  if (allDay) return "All day"
+type CalendarEvent = {
+  id?: string
+  title: string
+  start: string | undefined
+  end: string | undefined
+  allDay: boolean
+}
+
+function formatEventTime(start: string | undefined, end: string | undefined, allDay: boolean): string {
+  if (allDay || !start || !end) return "All day"
   const fmt = (iso: string) => {
     const d = new Date(iso)
     return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
@@ -102,7 +110,7 @@ export function EventsSection() {
                           : "No past events"}
                     </p>
                   ) : (
-                    q.data.map((ev) => (
+                    q.data.map((ev: CalendarEvent) => (
                       <Link
                         key={ev.id}
                         href="/calendar"

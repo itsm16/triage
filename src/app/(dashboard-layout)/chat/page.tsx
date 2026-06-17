@@ -9,7 +9,7 @@ import { ChatMessage } from "~/components/chat/chat-message"
 import { useChatStore, type ActionItem, type LogEntry } from "~/lib/chat-store"
 import { templates } from "~/lib/templates"
 import { api } from "~/trpc/react"
-import { Bot, Mail, Calendar, FileText, Sparkles } from "lucide-react"
+import { Bot, Mail, Calendar, Sparkles } from "lucide-react"
 
 type StreamEvent =
   | { type: "token"; content: string }
@@ -20,17 +20,19 @@ type StreamEvent =
 
 function extractErrorMessage(raw: string): string {
   try {
-    const parsed = JSON.parse(raw)
-    const msg = parsed?.error?.message
+    const parsed = JSON.parse(raw) as Record<string, unknown> | null
+    const err = parsed?.error as Record<string, unknown> | undefined
+    const msg = err?.message
     if (typeof msg === "string") {
       try {
-        const inner = JSON.parse(msg)
-        return inner?.error?.message ?? msg
+        const inner = JSON.parse(msg) as Record<string, unknown> | null
+        const innerErr = inner?.error as Record<string, unknown> | undefined
+        return typeof innerErr?.message === "string" ? innerErr.message : msg
       } catch {
         return msg
       }
     }
-    return parsed?.error?.status ?? raw
+    return typeof err?.status === "string" ? err.status : raw
   } catch {
     return raw
   }
@@ -87,7 +89,6 @@ export default function ChatPage() {
   const addLog = useChatStore((s) => s.addLog)
   const updateLogStore = useChatStore((s) => s.updateLog)
   const updateMessageConversation = useChatStore((s) => s.updateMessageConversation)
-  const updateMessageActions = useChatStore((s) => s.updateMessageActions)
   const addToolCall = useChatStore((s) => s.addToolCall)
   const finishToolCalls = useChatStore((s) => s.finishToolCalls)
   const resetToolCalls = useChatStore((s) => s.resetToolCalls)
@@ -216,7 +217,7 @@ export default function ChatPage() {
         setStreaming(false)
       }
     },
-    [addMessage, appendToMessage, addLogSync, setStreaming, addToolCall, finishToolCalls, resetToolCalls, updateMessageConversation],
+    [addMessage, appendToMessage, setStreaming, addToolCall, finishToolCalls, resetToolCalls, updateMessageConversation],
   )
 
   const handleInputResponse = useCallback(
@@ -224,7 +225,7 @@ export default function ChatPage() {
       const msg = messages.find((m) => m.id === messageId)
       addMessage({ role: "user", content: text })
       addLogSync({ status: "INFO", label: text, detail: "", operation: "system" })
-      streamChat({ message: text, conversation: msg?.conversation })
+      void streamChat({ message: text, conversation: msg?.conversation })
     },
     [addMessage, addLogSync, messages, streamChat],
   )
@@ -281,7 +282,7 @@ export default function ChatPage() {
       if (conv) {
         doExecute(conv)
       } else {
-        streamChat({ message: `Confirmed: proceed with ${action.label}`, reviewMode: true, approvedTool: { name: action.toolName, args: action.toolArgs } })
+        void streamChat({ message: `Confirmed: proceed with ${action.label}`, reviewMode: true, approvedTool: { name: action.toolName, args: action.toolArgs } })
       }
     },
     [setActionStatus, updateLogSync, addMessage, logs, messages, executeAction, streamChat],
@@ -317,7 +318,7 @@ export default function ChatPage() {
 
     if (text) {
       const lastAi = [...messages].reverse().find((m) => m.role === "ai" && m.conversation)
-      streamChat({ message: fullContent, conversation: lastAi?.conversation })
+      void streamChat({ message: fullContent, conversation: lastAi?.conversation })
     }
   }, [input, references, addMessage, addLogSync, streamChat, isStreaming, messages])
 
@@ -351,7 +352,7 @@ export default function ChatPage() {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "Summarize my inbox" })
                       addLogSync({ status: "INFO", label: "Summarize my inbox", detail: "", operation: "system" })
-                      streamChat({ message: "Summarize my inbox" })
+                      void streamChat({ message: "Summarize my inbox" })
                     }}
                     disabled={isStreaming}
                     className="flex items-center gap-2 rounded-xl border border-[#434656]/20 bg-[#1a1b1f] px-4 py-3 text-left transition-colors hover:border-[#b6c4ff]/30 hover:bg-[#1e1f23] disabled:cursor-not-allowed disabled:opacity-40"
@@ -369,7 +370,7 @@ export default function ChatPage() {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "Schedule a meeting" })
                       addLogSync({ status: "INFO", label: "Schedule a meeting", detail: "", operation: "system" })
-                      streamChat({ message: "Schedule a meeting" })
+                      void streamChat({ message: "Schedule a meeting" })
                     }}
                     disabled={isStreaming}
                     className="flex items-center gap-2 rounded-xl border border-[#434656]/20 bg-[#1a1b1f] px-4 py-3 text-left transition-colors hover:border-[#b6c4ff]/30 hover:bg-[#1e1f23] disabled:cursor-not-allowed disabled:opacity-40"
@@ -405,7 +406,7 @@ export default function ChatPage() {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "What can you do?" })
                       addLogSync({ status: "INFO", label: "What can you do?", detail: "", operation: "system" })
-                      streamChat({ message: "What can you do?" })
+                      void streamChat({ message: "What can you do?" })
                     }}
                     disabled={isStreaming}
                     className="flex items-center gap-2 rounded-xl border border-[#434656]/20 bg-[#1a1b1f] px-4 py-3 text-left transition-colors hover:border-[#b6c4ff]/30 hover:bg-[#1e1f23] disabled:cursor-not-allowed disabled:opacity-40"

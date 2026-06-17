@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Mic, ArrowUp, Square, FileText, Search, X } from "lucide-react"
+import { ArrowUp, Square, FileText, Search, X } from "lucide-react"
 import { templates } from "~/lib/templates"
 import { api } from "~/trpc/react"
 
@@ -23,8 +23,6 @@ interface ChatInputProps {
   onRemoveReference: (id: string) => void
   placeholder?: string
 }
-
-let refId = 1
 
 export function ChatInput({
   value,

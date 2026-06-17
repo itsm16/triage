@@ -1,6 +1,7 @@
 "use client"
 
-import { Edit3, Inbox, LayoutDashboard, Calendar, Bot, GitBranch, FileText, Settings, Zap } from "lucide-react"
+import Image from "next/image"
+import { Edit3, Inbox, LayoutDashboard, Calendar, Bot, GitBranch, FileText, Settings } from "lucide-react"
 
 import { NavMain } from "~/components/nav-main"
 import { NavProjects } from "~/components/nav-projects"
@@ -76,7 +77,7 @@ export function Sidebar({
       <TooltipProvider>
         <SidebarHeader>
           <div className="flex items-center gap-3 px-2 py-2">
-            <img src="/logo.svg" alt="Triage" className="size-8 shrink-0" />
+            <Image src="/logo.svg" alt="Triage" width={32} height={32} className="size-8 shrink-0" />
             <span className="text-[20px] font-medium leading-5 tracking-tight text-[#b6c4ff] group-data-[collapsible=icon]:hidden">
               Triage
             </span>

@@ -115,7 +115,7 @@ async function DashboardShell({
             <h1 className="text-2xl font-semibold text-[#e3e2e7]">
               Hey, {userName ?? "there"}
             </h1>
-            <p className="mt-1 text-sm text-[#8d90a2]">Here's your overview</p>
+            <p className="mt-1 text-sm text-[#8d90a2]">Here&apos;s your overview</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">

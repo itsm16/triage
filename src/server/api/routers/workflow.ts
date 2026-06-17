@@ -97,7 +97,7 @@ export const workflowRouter = createTRPCRouter({
         .where(eq(workflowNodes.workflowId, input.workflowId))
         .orderBy(workflowNodes.createdAt);
 
-      return await executeNodes(ctx, nodes);
+      return await executeNodes(ctx, nodes as { id: string; type: string; config: Record<string, unknown> }[]);
     }),
 
   executeOnce: protectedProcedure
@@ -114,13 +114,25 @@ export const workflowRouter = createTRPCRouter({
 });
 
 async function executeNodes(
-  ctx: any,
-  nodes: { id: string; type: string; config: any }[],
+  ctx: { tenant: unknown },
+  nodes: { id: string; type: string; config: Record<string, unknown> }[],
 ): Promise<{ success: boolean; error?: string; nodeResults: { nodeId: string; status: string }[] }> {
   if (nodes.length === 0) {
     return { success: false, error: "No nodes", nodeResults: [] };
   }
 
+  const t = ctx.tenant as {
+    gmail: {
+      api: {
+        messages: {
+          send: (params: { raw: string; threadId?: string }) => Promise<unknown>;
+          list: (params: { maxResults: number; q: string }) => Promise<{ messages?: { id?: string }[] }>;
+          get: (params: { id: string; format: string }) => Promise<{ payload?: { headers?: { name: string; value: string }[] }; threadId?: string }>;
+        };
+        drafts: { create: (params: { draft: { message: { raw: string } } }) => Promise<unknown> };
+      };
+    };
+  };
   const flowCtx: Record<string, string> = {};
   const visited = new Set<string>();
   const queue = [nodes[0]];
@@ -135,14 +147,14 @@ async function executeNodes(
 
     switch (node.type) {
       case "variables": {
-        const vars = node.config?.variables ?? [];
+        const vars = (node.config?.variables as Array<{ key: string; value: string }>) ?? [];
         for (const v of vars) {
           flowCtx[v.key] = v.value;
         }
         break;
       }
       case "template": {
-        let body = node.config?.body ?? "";
+        let body = (node.config?.body as string) ?? "";
         for (const [k, v] of Object.entries(flowCtx)) {
           body = body.replaceAll(`{${k}}`, v);
         }
@@ -150,9 +162,9 @@ async function executeNodes(
         break;
       }
       case "email": {
-        let to = node.config?.to ?? "";
-        let subject = node.config?.subject ?? "";
-        let body = node.config?.body ?? flowCtx._template ?? "";
+        let to = (node.config?.to as string) ?? "";
+        let subject = (node.config?.subject as string) ?? "";
+        let body = (node.config?.body as string) ?? flowCtx._template ?? "";
         for (const [k, v] of Object.entries(flowCtx)) {
           to = to.replaceAll(`{${k}}`, v);
           subject = subject.replaceAll(`{${k}}`, v);
@@ -170,19 +182,19 @@ async function executeNodes(
         }
         try {
           const raw = buildSimpleEmail(to, subject, body);
-          await ctx.tenant.gmail.api.messages.send({
+          await t.gmail.api.messages.send({
             raw: Buffer.from(raw).toString("base64url"),
           });
-        } catch (e: any) {
+        } catch {
           nodeResults.push({ nodeId: node.id, status: "error" });
           nodeOk = false;
         }
         break;
       }
       case "draft": {
-        let to = node.config?.to ?? "";
-        let subject = node.config?.subject ?? "";
-        let body = node.config?.body ?? flowCtx._template ?? "";
+        let to = (node.config?.to as string) ?? "";
+        let subject = (node.config?.subject as string) ?? "";
+        let body = (node.config?.body as string) ?? flowCtx._template ?? "";
         for (const [k, v] of Object.entries(flowCtx)) {
           to = to.replaceAll(`{${k}}`, v);
           subject = subject.replaceAll(`{${k}}`, v);
@@ -200,10 +212,10 @@ async function executeNodes(
         }
         try {
           const raw = buildSimpleEmail(to, subject, body);
-          await ctx.tenant.gmail.api.drafts.create({
+          await t.gmail.api.drafts.create({
             draft: { message: { raw: Buffer.from(raw).toString("base64url") } },
           });
-        } catch (e: any) {
+        } catch {
           nodeResults.push({ nodeId: node.id, status: "error" });
           nodeOk = false;
         }
@@ -211,21 +223,22 @@ async function executeNodes(
       }
       case "listener": {
         try {
-          const res = await ctx.tenant.gmail.api.messages.list({
+          const filter = node.config?.filter as string | undefined;
+          const res = await t.gmail.api.messages.list({
             maxResults: 1,
-            q: node.config?.filter ? `is:unread ${node.config.filter}` : "is:unread",
+            q: filter ? `is:unread ${filter}` : "is:unread",
           });
           const firstMsg = res.messages?.[0];
           if (firstMsg?.id) {
-            const full = await ctx.tenant.gmail.api.messages.get({ id: firstMsg.id, format: "full" });
+            const full = await t.gmail.api.messages.get({ id: firstMsg.id, format: "full" });
             const headers = full.payload?.headers ?? [];
-            const from = headers.find((h: any) => h.name === "From")?.value ?? "";
-            const subject = headers.find((h: any) => h.name === "Subject")?.value ?? "";
+            const from = headers.find((h: { name: string; value: string }) => h.name === "From")?.value ?? "";
+            const subject = headers.find((h: { name: string; value: string }) => h.name === "Subject")?.value ?? "";
             flowCtx._listenedFrom = from;
             flowCtx._listenedSubject = subject;
             flowCtx._listenedId = firstMsg.id;
           }
-        } catch (e: any) {
+        } catch {
           nodeResults.push({ nodeId: node.id, status: "error" });
           nodeOk = false;
         }
@@ -238,14 +251,14 @@ async function executeNodes(
           nodeOk = false;
           break;
         }
-        let body = node.config?.body ?? flowCtx._template ?? "";
+        let body = (node.config?.body as string) ?? flowCtx._template ?? "";
         for (const [k, v] of Object.entries(flowCtx)) {
           body = body.replaceAll(`{${k}}`, v);
         }
         try {
-          const full = await ctx.tenant.gmail.api.messages.get({ id: listenedId, format: "full" });
+          const full = await t.gmail.api.messages.get({ id: listenedId, format: "full" });
           const headers = full.payload?.headers ?? [];
-          const subject = headers.find((h: any) => h.name === "Subject")?.value ?? "";
+          const subject = headers.find((h: { name: string; value: string }) => h.name === "Subject")?.value ?? "";
           const threadId = full.threadId;
           const raw = [
             `From: me`,
@@ -257,11 +270,11 @@ async function executeNodes(
             "",
             body,
           ].join("\r\n");
-          await ctx.tenant.gmail.api.messages.send({
+          await t.gmail.api.messages.send({
             raw: Buffer.from(raw).toString("base64url"),
             threadId,
           });
-        } catch (e: any) {
+        } catch {
           nodeResults.push({ nodeId: node.id, status: "error" });
           nodeOk = false;
         }

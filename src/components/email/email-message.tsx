@@ -69,7 +69,7 @@ export function EmailMessage({ message, variant }: EmailMessageProps) {
           />
         ) : (
           <div className="whitespace-pre-line rounded border border-[#e3e2e7] bg-white p-4 text-base leading-relaxed text-black">
-            {message.bodyText || message.snippet}
+            {message.bodyText ?? message.snippet}
           </div>
         )}
       </div>
@@ -121,7 +121,7 @@ export function EmailMessage({ message, variant }: EmailMessageProps) {
         />
       ) : (
         <div className="whitespace-pre-line rounded border border-[#e3e2e7] bg-white p-3 text-sm leading-relaxed text-black">
-          {message.bodyText || message.snippet}
+          {message.bodyText ?? message.snippet}
         </div>
       )}
     </div>
