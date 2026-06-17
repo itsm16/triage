@@ -27,8 +27,8 @@ jobs:
       # inside github runner: pull, build and push docker image
       - name: Build and push
         run: |
-          docker build -t itsm16/triage:latest .
-          docker push itsm16/triage:latest
+          docker build -t itsm16/new-triage:latest .
+          docker push itsm16/new-triage:latest
       
       # github runner machine ssh to ec2
       - name: SSH to EC2
@@ -39,7 +39,7 @@ jobs:
           key: ${{ secrets.PRIVATE_KEY }}
           # got into ec2
           script: |
-            sudo docker pull itsm16/triage:latest
+            sudo docker pull itsm16/new-triage:latest
             sudo docker stop triage || true
             sudo docker rm triage || true
-            sudo docker run -d --name triage -p 3000:3000 itsm16/triage:latest
+            sudo docker run -d --name triage -p 3000:3000 itsm16/new-triage:latest
