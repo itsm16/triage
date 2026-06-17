@@ -20,9 +20,7 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2.5">
-              <div className="flex size-7 items-center justify-center rounded bg-[#0055ff]">
-                <Zap className="text-[#e3e6ff]" size={16} />
-              </div>
+              <img src="/logo.svg" alt="Triage" className="size-7" />
               <span className="font-mono text-xs font-medium uppercase tracking-[0.05em] text-white cursor-pointer">
                 Triage
               </span>
@@ -239,7 +237,7 @@ export default function Home() {
         </section>
 
         {/* Final CTA */}
-        <section className="px-4 py-40">
+        {/* <section className="px-4 py-40">
           <div className="glass-card relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] p-12 text-center md:p-24">
             <div className="absolute -right-24 -top-24 size-64 rounded-full bg-[#b6c4ff]/10 blur-[100px]" />
             <div className="absolute -bottom-24 -left-24 size-64 rounded-full bg-[#b6c4ff]/5 blur-[100px]" />
@@ -266,11 +264,11 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </section>
+        </section> */}
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-[#434656]/30 bg-[#0d0e12] py-12">
+      {/* <footer className="w-full border-t border-[#434656]/30 bg-[#0d0e12] py-12">
         <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-8 px-10 md:flex-row md:justify-between">
           <div className="flex flex-col items-center gap-2 md:items-start">
             <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#c3c5d9]">
@@ -302,7 +300,7 @@ export default function Home() {
             </svg>
           </a>
         </div>
-      </footer>
+      </footer> */}
     </>
   )
 }

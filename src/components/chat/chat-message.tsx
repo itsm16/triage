@@ -58,8 +58,10 @@ function ActionBadge({
 }
 
 function ConfirmationBox({ conf, messageId }: { conf: ConfirmationItem; messageId: string }) {
-  const removeMessage = useChatStore((s) => s.removeMessage)
+  const [resolved, setResolved] = useState(false)
   const addLog = useChatStore((s) => s.addLog)
+
+  if (resolved) return null
 
   return (
     <div className="rounded-md border border-[#434656]/20 bg-[#0d0e12] p-2.5">
@@ -67,8 +69,8 @@ function ConfirmationBox({ conf, messageId }: { conf: ConfirmationItem; messageI
       <div className="flex gap-1.5">
         <button
           onClick={() => {
+            setResolved(true)
             conf.onConfirm()
-            removeMessage(messageId)
             addLog({ status: "SUCCESS", label: "Confirmed", detail: conf.question })
           }}
           className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${
@@ -81,8 +83,8 @@ function ConfirmationBox({ conf, messageId }: { conf: ConfirmationItem; messageI
         </button>
         <button
           onClick={() => {
+            setResolved(true)
             conf.onCancel?.()
-            removeMessage(messageId)
             addLog({ status: "INFO", label: "Cancelled", detail: conf.question })
           }}
           className="rounded border border-[#434656]/30 px-2.5 py-1 text-[10px] text-[#c3c5d9] transition-colors hover:bg-[#292a2e]"

@@ -59,10 +59,12 @@ interface ChatStore {
   toolCallStatuses: ToolCallStatus[]
   addMessage: (msg: Omit<ChatMessage, "id">) => string
   appendToMessage: (messageId: string, content: string) => void
-  addLog: (log: Omit<LogEntry, "id" | "time">) => void
+  addLog: (log: Omit<LogEntry, "id" | "time">) => string
   updateLog: (id: string, updates: Partial<LogEntry>) => void
   removeLog: (id: string) => void
   removeMessage: (id: string) => void
+  updateMessageConversation: (id: string, conversation: string) => void
+  updateMessageActions: (id: string, actions: ActionItem[]) => void
   setActionStatus: (messageId: string, actionId: string, status: ActionStatus) => void
   setStreaming: (streaming: boolean) => void
   resetToolCalls: () => void
@@ -78,23 +80,9 @@ function now() {
   return new Date().toLocaleTimeString("en-US", { hour12: false })
 }
 
-function loadLogs(): LogEntry[] {
-  if (typeof window === "undefined") return []
-  try {
-    return JSON.parse(localStorage.getItem("chat-logs") ?? "[]")
-  } catch {
-    return []
-  }
-}
-
-function persistLogs(logs: LogEntry[]) {
-  if (typeof window === "undefined") return
-  localStorage.setItem("chat-logs", JSON.stringify(logs))
-}
-
 export const useChatStore = create<ChatStore>()((set) => ({
   messages: [],
-  logs: loadLogs(),
+  logs: [],
   isStreaming: false,
   toolCallStatuses: [],
   addMessage: (msg) => {
@@ -110,32 +98,37 @@ export const useChatStore = create<ChatStore>()((set) => ({
         m.id === messageId ? { ...m, content: m.content + content } : m,
       ),
     })),
-  addLog: (log: Omit<LogEntry, "id" | "time">) =>
+  addLog: (log: Omit<LogEntry, "id" | "time">) => {
+    const id = `log_${msgId++}`
     set((s) => {
-      const maxId = s.logs.reduce((max, l) => {
-        const num = parseInt(l.id.replace("log_", ""), 10)
-        return isNaN(num) ? max : Math.max(max, num)
-      }, 0)
-      const newLog = { ...log, id: `log_${maxId + 1}`, time: now() }
-      const updated = [...s.logs, newLog]
-      persistLogs(updated)
-      return { logs: updated }
-    }),
+      const newLog = { ...log, id, time: now() }
+      return { logs: [...s.logs, newLog] }
+    })
+    return id
+  },
   updateLog: (id, updates) =>
-    set((s) => {
-      const updated = s.logs.map((l) => (l.id === id ? { ...l, ...updates } : l))
-      persistLogs(updated)
-      return { logs: updated }
-    }),
+    set((s) => ({
+      logs: s.logs.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+    })),
   removeLog: (id) =>
-    set((s) => {
-      const updated = s.logs.filter((l) => l.id !== id)
-      persistLogs(updated)
-      return { logs: updated }
-    }),
+    set((s) => ({
+      logs: s.logs.filter((l) => l.id !== id),
+    })),
   removeMessage: (id) =>
     set((s) => ({
       messages: s.messages.filter((m) => m.id !== id),
+    })),
+  updateMessageConversation: (id, conversation) =>
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === id ? { ...m, conversation } : m,
+      ),
+    })),
+  updateMessageActions: (id, actions) =>
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === id ? { ...m, actions } : m,
+      ),
     })),
   setActionStatus: (messageId, actionId, status) =>
     set((s) => ({
@@ -169,9 +162,5 @@ export const useChatStore = create<ChatStore>()((set) => ({
       toolCallStatuses: s.toolCallStatuses.map((t) => ({ ...t, status: "done" as const })),
     })),
   clearMessages: () => set({ messages: [], logs: [] }),
-  clearLogs: () =>
-    set((s) => {
-      persistLogs([])
-      return { logs: [] }
-    }),
+  clearLogs: () => set({ logs: [] }),
 }))

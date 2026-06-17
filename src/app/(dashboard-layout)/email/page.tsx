@@ -29,7 +29,7 @@ const CATEGORIES = [
 ]
 
 const TAB_TO_CATEGORY: Record<string, string> = {
-  primary: "CATEGORY_PRIMARY",
+  primary: "INBOX",
   updates: "CATEGORY_UPDATES",
   social: "CATEGORY_SOCIAL",
   promotions: "CATEGORY_PROMOTIONS",
@@ -448,7 +448,7 @@ export default function EmailPage() {
       <div className="flex h-[calc(100vh-4rem)] items-start overflow-y-hidden">
         <EmailList
           messages={messages}
-          isLoading={false}
+          isLoading={isLoading}
           activeId={activeId}
           selectedIds={selectedIds}
           tokensLength={tokens.length}

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { api } from "~/trpc/server";
 import { getSession } from "~/server/better-auth/server";
 import { EventsSection } from "~/components/dashboard/events-section";
+import { DashboardLogs } from "~/components/dashboard/dashboard-logs";
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ connected?: string; error?: string }>
@@ -155,9 +156,7 @@ async function DashboardShell({
 
             <EventsSection />
 
-            <section className="rounded-xl border border-dashed border-[#434656]/20 bg-[#1a1b1f]/50 p-6">
-              <p className="py-16 text-center text-sm text-[#8d90a2]">Coming soon</p>
-            </section>
+            <DashboardLogs />
 
           </div>
         </div>

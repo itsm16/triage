@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
-import { X, Plus, Trash2 } from "lucide-react"
+import { X, Plus, Trash2, Search, Mail as MailIcon } from "lucide-react"
 import { NODE_DEF_MAP, type NodeType } from "./node-types"
+import { api } from "~/trpc/react"
 
 interface NodeConfigPanelProps {
   node: { id: string; type: NodeType; label: string; config: Record<string, any> } | null
@@ -36,7 +37,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProp
   }
 
   return (
-    <div className="absolute right-0 top-0 z-20 flex w-fit min-w-80 max-w-sm flex-col border-l border-[#434656]/10 bg-[#0d0e12] shadow-xl h-full">
+    <div className="absolute right-0 top-0 z-30 flex w-fit min-w-80 max-w-sm flex-col border-l border-[#434656]/10 bg-[#0d0e12] shadow-xl h-full">
       <div className="flex items-center justify-between border-b border-[#434656]/10 px-5 py-4">
         <div className="flex items-center gap-2">
           {Icon && <Icon className={`size-4 ${def?.color}`} />}
@@ -75,6 +76,10 @@ export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProp
 
         {node.type === "listener" && (
           <ListenerConfig config={config} onUpdate={update} />
+        )}
+
+        {node.type === "reply" && (
+          <ReplyConfig config={config} onUpdate={update} />
         )}
       </div>
     </div>
@@ -234,5 +239,96 @@ function ListenerConfig({
       />
       <p className="mt-1 text-[11px] text-[#8d90a2]">Leave empty to listen to all unread</p>
     </div>
+  )
+}
+
+function ReplyConfig({
+  config,
+  onUpdate,
+}: {
+  config: Record<string, any>
+  onUpdate: (key: string, value: any) => void
+}) {
+  const [searchQ, setSearchQ] = useState("")
+  const [debounced, setDebounced] = useState("")
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(searchQ), 300)
+    return () => clearTimeout(t)
+  }, [searchQ])
+
+  const { data: searchResults } = api.corsair.listMessages.useQuery(
+    { q: debounced || undefined },
+    { enabled: debounced.length > 0 },
+  )
+
+  return (
+    <>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Search email to reply to</label>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#8d90a2]" />
+          <input
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="Search emails..."
+            className="w-full rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-2 pl-8 text-sm text-[#e3e2e7] placeholder-[#8d90a2] outline-none focus:border-[#b6c4ff]/30"
+          />
+        </div>
+      </div>
+
+      {config.selectedEmail && (
+        <div className="rounded-lg border border-[#434656]/20 bg-[#1a1b1f] p-3">
+          <p className="text-[10px] font-medium text-[#b6c4ff] uppercase tracking-wider">Selected Email</p>
+          <p className="mt-1 text-xs text-[#e3e2e7] truncate">{config.selectedEmail.subject}</p>
+          <p className="text-[10px] text-[#8d90a2] truncate">{config.selectedEmail.from}</p>
+          <button
+            onClick={() => onUpdate("selectedEmail", undefined)}
+            className="mt-1 text-[10px] text-red-400 hover:text-red-300"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {debounced && !searchQ && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Recent Emails</label>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {[].map((m: any) => null)}
+            <p className="text-[10px] text-[#8d90a2] py-2 text-center">Type to search emails</p>
+          </div>
+        </div>
+      )}
+
+      {debounced && searchResults?.messages && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[#8d90a2]">Results</label>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {searchResults.messages.length === 0 ? (
+              <p className="text-[10px] text-[#8d90a2] py-2 text-center">No emails found</p>
+            ) : (
+              searchResults.messages.slice(0, 10).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    onUpdate("selectedEmail", { id: m.id, subject: m.subject, from: m.from })
+                    setSearchQ("")
+                    setDebounced("")
+                  }}
+                  className="flex items-start gap-2 w-full rounded border border-[#434656]/10 bg-[#121317] p-2 text-left transition-colors hover:border-[#b6c4ff]/30"
+                >
+                  <MailIcon className="size-3 shrink-0 mt-0.5 text-[#8d90a2]" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-medium text-[#e3e2e7]">{m.subject || "(no subject)"}</p>
+                    <p className="truncate text-[9px] text-[#8d90a2]">{m.from}</p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

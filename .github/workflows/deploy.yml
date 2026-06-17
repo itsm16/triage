@@ -1,0 +1,45 @@
+name: Deploy Nodejs code on EC2
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # in github runner: got access to your code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # inside github runner: pull, build and push docker image
+      - name: Build and push
+        run: |
+          docker build -t itsm16/triage:latest .
+          docker push itsm16/triage:latest
+      
+      # github runner machine ssh to ec2
+      - name: SSH to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.PRIVATE_KEY }}
+          # got into ec2
+          script: |
+            sudo docker pull itsm16/triage:latest
+            sudo docker stop triage || true
+            sudo docker rm triage || true
+            sudo docker run -d --name triage -p 5000:5000 itsm16/triage:latest

@@ -42,6 +42,7 @@ export default function TemplatesPage() {
           {filtered.map((t) => (
             <div
               key={t.name}
+              onClick={() => open("compose", undefined, { body: t.body })}
               className="group flex cursor-pointer items-center justify-between rounded-lg border border-[#434656]/10 px-5 py-4 transition-colors hover:bg-[#1a1b1f]"
             >
               <div className="flex items-center gap-4">
@@ -52,17 +53,6 @@ export default function TemplatesPage() {
                   <p className="text-sm font-medium text-[#e3e2e7]">{t.name}</p>
                   <p className="text-xs text-[#8d90a2]">{t.body}</p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
-                  onClick={() => open("compose", undefined, { body: t.body })}
-                  className="flex items-center gap-1 rounded border border-[#434656]/20 px-2 py-1 font-mono text-[10px] text-[#c3c5d9] transition-colors hover:bg-[#292a2e]"
-                >
-                  Insert <ChevronDown className="size-3" />
-                </button>
-                <button className="rounded p-1.5 text-[#8d90a2] transition-colors hover:text-[#c3c5d9]">
-                  <MoreHorizontal className="size-4" />
-                </button>
               </div>
             </div>
           ))}

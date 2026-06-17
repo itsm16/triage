@@ -27,13 +27,13 @@ const navMain = [
     icon: <Inbox />,
     isActive: true,
     items: [
-      { title: "All", url: "/email" },
-      // { title: "Primary", url: "/email?tab=primary" },
+      { title: "Primary", url: "/email?tab=primary" },
       { title: "Drafts", url: "/email?tab=drafts" },
       { title: "Sent", url: "/email?tab=sent" },
       {
         title: "More",
         items: [
+          { title: "All", url: "/email" },
           { title: "Updates", url: "/email?tab=updates" },
           { title: "Social", url: "/email?tab=social" },
           { title: "Promotions", url: "/email?tab=promotions" },
@@ -76,9 +76,7 @@ export function Sidebar({
       <TooltipProvider>
         <SidebarHeader>
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="flex size-8 items-center justify-center rounded bg-[#0055ff]">
-              <Zap className="text-[#e3e6ff]" size={20} />
-            </div>
+            <img src="/logo.svg" alt="Triage" className="size-8 shrink-0" />
             <span className="text-[20px] font-medium leading-5 tracking-tight text-[#b6c4ff] group-data-[collapsible=icon]:hidden">
               Triage
             </span>

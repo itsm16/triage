@@ -8,7 +8,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { corsairAccounts, corsairIntegrations } from "~/server/db/schema";
+import { chatLogs, corsairAccounts, corsairIntegrations } from "~/server/db/schema";
 import { InviteEmail } from "~/emails/invite-email";
 import { corsair } from "~/server/corsair";
 import { processWebhook } from "corsair";
@@ -354,6 +354,55 @@ export const corsairRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await ctx.tenant.gmail.api.messages.delete({ id: input.id });
       return { success: true };
+    }),
+
+  saveLog: protectedProcedure
+    .input(z.object({
+      id: z.string().optional(),
+      label: z.string(),
+      detail: z.string().default(""),
+      status: z.string().default("INFO"),
+      operation: z.string().default("system"),
+      time: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const values: Record<string, unknown> = {
+        userId: ctx.session.user.id,
+        label: input.label,
+        detail: input.detail,
+        status: input.status,
+        operation: input.operation,
+        time: input.time,
+      };
+      if (input.id) values.id = input.id;
+      await ctx.db.insert(chatLogs).values(values as any);
+      return { success: true };
+    }),
+
+  updateLog: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      status: z.string().optional(),
+      detail: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const updates: Record<string, string> = {};
+      if (input.status !== undefined) updates.status = input.status;
+      if (input.detail !== undefined) updates.detail = input.detail;
+      await ctx.db.update(chatLogs).set(updates).where(eq(chatLogs.id, input.id));
+      return { success: true };
+    }),
+
+  getRecentLogs: protectedProcedure
+    .input(z.object({ limit: z.number().default(10) }))
+    .query(async ({ ctx, input }) => {
+      const logs = await ctx.db
+        .select()
+        .from(chatLogs)
+        .where(eq(chatLogs.userId, ctx.session.user.id))
+        .orderBy(chatLogs.createdAt)
+        .limit(input.limit);
+      return logs;
     }),
 
   chat: {

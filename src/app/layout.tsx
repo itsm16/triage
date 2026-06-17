@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: "Triage - Your communication, automated",
   description:
     "AI-native control system for professionals who live in their inbox and calendar. Command your workflow with precision.",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: [{ rel: "icon", url: "/logo.svg" }],
 };
 
 const geist = Geist({

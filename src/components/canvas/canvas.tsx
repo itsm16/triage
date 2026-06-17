@@ -449,16 +449,14 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
         >
           <Plus className="size-3.5" /> Nodes
         </button>
-        {!isOneTime && (
-          <button
-            onClick={save}
-            disabled={saveNodesMut.isPending}
-            className="flex items-center gap-1.5 rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-1.5 text-xs font-medium text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-50"
-          >
-            {saveNodesMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-            Save
-          </button>
-        )}
+        <button
+          onClick={save}
+          disabled={saveNodesMut.isPending || isOneTime}
+          className="flex items-center gap-1.5 rounded-lg border border-[#434656]/20 bg-[#1a1b1f] px-3 py-1.5 text-xs font-medium text-[#c3c5d9] transition-colors hover:text-[#b6c4ff] disabled:opacity-50"
+        >
+          {saveNodesMut.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+          Save
+        </button>
         <button
           onClick={run}
           disabled={executeMut.isPending || executeOnceMut.isPending}
@@ -474,7 +472,10 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
       </div>
 
       {showDrawer && (
-        <div className="absolute right-0 top-0 z-20 flex h-full w-fit min-w-60 flex-col border-l border-[#434656]/10 bg-[#0d0e12] shadow-xl">
+        <div
+          className="absolute top-0 z-20 flex h-full w-fit min-w-60 flex-col border-l border-[#434656]/10 bg-[#0d0e12] shadow-xl"
+          style={{ right: selectedNode ? 320 : 0 }}
+        >
           <div className="flex items-center justify-between border-b border-[#434656]/10 px-5 py-4">
             <h2 className="text-sm font-semibold text-[#e3e2e7]">Node Palette</h2>
             <button
@@ -493,47 +494,28 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
                   <h5 className="text-[10px] font-medium uppercase tracking-widest text-[#8d90a2] mb-3">
                     {cat.label}
                   </h5>
-                  {cat.key === "triggers" || cat.key === "data" || cat.key === "content" ? (
-                    <div className={`grid gap-2 ${catNodes.length > 2 ? "grid-cols-2" : ""}`}>
-                      {catNodes.map(({ type, label, icon: Icon, color, bg }) => (
-                        <button
-                          key={type}
-                          onClick={() => addNode(type, label)}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/reactflow", type)
-                            e.dataTransfer.effectAllowed = "move"
-                          }}
-                          className="group flex flex-col items-center gap-2 rounded-lg border border-[#434656]/10 bg-[#121317] p-3 transition-all hover:border-[#b6c4ff]/30"
-                        >
-                          <div className={`flex size-8 items-center justify-center rounded ${bg} group-hover:scale-110 transition-transform`}>
-                            <Icon className={`size-4 ${color}`} />
-                          </div>
-                          <span className="text-[10px] font-medium text-[#e3e2e7]">{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {catNodes.map(({ type, label, icon: Icon, color, bg }) => (
-                        <button
-                          key={type}
-                          onClick={() => addNode(type, label)}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/reactflow", type)
-                            e.dataTransfer.effectAllowed = "move"
-                          }}
-                          className="group flex items-center gap-3 rounded-lg border border-[#434656]/10 bg-[#121317] p-3 transition-all hover:border-[#b6c4ff]/30 w-full text-left"
-                        >
-                          <div className={`flex size-8 items-center justify-center rounded ${bg}`}>
-                            <Icon className={`size-4 ${color}`} />
-                          </div>
-                          <span className="text-xs font-medium text-[#e3e2e7]">{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {catNodes.map(({ type, label, description, icon: Icon, color, bg }) => (
+                    <button
+                      key={type}
+                      onClick={() => addNode(type, label)}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/reactflow", type)
+                        e.dataTransfer.effectAllowed = "move"
+                      }}
+                      className={`group flex flex-col items-center gap-2 rounded-lg border border-[#434656]/10 bg-[#121317] p-3 transition-all duration-300 hover:border-[#b6c4ff]/30 ${cat.key === "triggers" || cat.key === "data" || cat.key === "content" ? "" : "w-full text-left"}`}
+                    >
+                      <div className={`flex size-8 items-center justify-center rounded ${bg} group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className={`size-4 ${color}`} />
+                      </div>
+                      <span className="text-[10px] font-medium text-[#e3e2e7]">{label}</span>
+                      <div className="grid grid-rows-[0fr] transition-all duration-300 group-hover:grid-rows-[1fr]">
+                        <p className="overflow-hidden text-[8px] text-[#8d90a2] leading-tight opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                          {description}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )
             })}

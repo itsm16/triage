@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { ActivityLog } from "~/components/chat/activity-log"
 import { ChatInput, type Reference } from "~/components/chat/chat-input"
 import { ChatMessage } from "~/components/chat/chat-message"
-import { useChatStore, type ActionItem } from "~/lib/chat-store"
+import { useChatStore, type ActionItem, type LogEntry } from "~/lib/chat-store"
 import { templates } from "~/lib/templates"
 import { api } from "~/trpc/react"
 import { Bot, Mail, Calendar, FileText, Sparkles } from "lucide-react"
@@ -85,7 +85,9 @@ export default function ChatPage() {
   const setStreaming = useChatStore((s) => s.setStreaming)
   const logs = useChatStore((s) => s.logs)
   const addLog = useChatStore((s) => s.addLog)
-  const updateLog = useChatStore((s) => s.updateLog)
+  const updateLogStore = useChatStore((s) => s.updateLog)
+  const updateMessageConversation = useChatStore((s) => s.updateMessageConversation)
+  const updateMessageActions = useChatStore((s) => s.updateMessageActions)
   const addToolCall = useChatStore((s) => s.addToolCall)
   const finishToolCalls = useChatStore((s) => s.finishToolCalls)
   const resetToolCalls = useChatStore((s) => s.resetToolCalls)
@@ -94,6 +96,28 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null)
 
   const executeAction = api.corsair.chat.executeAction.useMutation()
+  const saveLogMutation = api.corsair.saveLog.useMutation()
+  const updateLogMutation = api.corsair.updateLog.useMutation()
+
+  const addLogSync = useCallback((log: Omit<LogEntry, "id" | "time">) => {
+    const id = addLog(log)
+    saveLogMutation.mutate({
+      label: log.label,
+      detail: log.detail,
+      status: log.status,
+      operation: log.operation ?? "system",
+      time: new Date().toLocaleTimeString("en-US", { hour12: false }),
+      id,
+    })
+    return id
+  }, [addLog, saveLogMutation])
+
+  const updateLogSync = useCallback((id: string, updates: Partial<LogEntry>) => {
+    updateLogStore(id, updates)
+    if (updates.status) {
+      updateLogMutation.mutate({ id, status: updates.status })
+    }
+  }, [updateLogStore, updateLogMutation])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -168,10 +192,12 @@ export default function ChatPage() {
                   break
                 case "tool_call":
                   addToolCall(friendlyLabel(event.name, event.args))
+                  updateMessageConversation(pendingMsg, event.conversation)
                   break
                 case "done":
                   finishToolCalls()
                   appendToMessage(pendingMsg, "")
+                  updateMessageConversation(pendingMsg, event.conversation)
                   setStreaming(false)
                   break
                 case "error":
@@ -190,67 +216,75 @@ export default function ChatPage() {
         setStreaming(false)
       }
     },
-    [addMessage, appendToMessage, addLog, setStreaming, addToolCall, finishToolCalls, resetToolCalls],
+    [addMessage, appendToMessage, addLogSync, setStreaming, addToolCall, finishToolCalls, resetToolCalls, updateMessageConversation],
   )
 
   const handleInputResponse = useCallback(
     (messageId: string, text: string) => {
-      addMessage({ role: "user", content: text })
-      addLog({ status: "INFO", label: text, detail: "", operation: "system" })
       const msg = messages.find((m) => m.id === messageId)
+      addMessage({ role: "user", content: text })
+      addLogSync({ status: "INFO", label: text, detail: "", operation: "system" })
       streamChat({ message: text, conversation: msg?.conversation })
     },
-    [addMessage, addLog, messages, streamChat],
+    [addMessage, addLogSync, messages, streamChat],
   )
 
   const handleExecute = useCallback(
     (action: ActionItem, messageId: string) => {
       if (!action.toolName) return
       const msg = messages.find((m) => m.id === messageId)
-      if (!msg?.conversation) return
+      const conv = msg?.conversation
 
       setActionStatus(messageId, action.id, "success")
       const match = [...logs].reverse().find((l) => l.label === action.label && l.status === "PENDING")
-      if (match) updateLog(match.id, { status: "RUNNING" })
+      if (match) updateLogSync(match.id, { status: "RUNNING" })
 
-      executeAction.mutate(
-        {
-          toolName: action.toolName,
-          toolArgs: action.toolArgs,
-          conversation: msg.conversation,
-        },
-        {
-          onSuccess: (raw) => {
-            if (match) updateLog(match.id, { status: "SUCCESS" })
-            const result = raw as AgentResult
-            if (result.type === "text") {
-              addMessage({ role: "ai", content: result.content })
-            } else {
-              addMessage({
-                role: "ai",
-                content: "Another action needs approval:",
-                actions: [
-                  {
-                    id: `action_${Date.now()}`,
-                    label: result.toolCall.name,
-                    detail: JSON.stringify(result.toolCall.args),
-                    status: "pending",
-                    toolName: result.toolCall.name,
-                    toolArgs: result.toolCall.args,
-                  },
-                ],
-                conversation: result.conversation,
-              })
-            }
+      const doExecute = (conversation: string) => {
+        executeAction.mutate(
+          {
+            toolName: action.toolName!,
+            toolArgs: action.toolArgs,
+            conversation,
           },
-          onError: () => {
-            if (match) updateLog(match.id, { status: "ERROR" })
-            toast.error("Action failed")
+          {
+            onSuccess: (raw) => {
+              if (match) updateLogSync(match.id, { status: "SUCCESS" })
+              const result = raw as AgentResult
+              if (result.type === "text") {
+                addMessage({ role: "ai", content: result.content })
+              } else {
+                addMessage({
+                  role: "ai",
+                  content: "Another action needs approval:",
+                  actions: [
+                    {
+                      id: `action_${Date.now()}`,
+                      label: result.toolCall.name,
+                      detail: JSON.stringify(result.toolCall.args),
+                      status: "pending",
+                      toolName: result.toolCall.name,
+                      toolArgs: result.toolCall.args,
+                    },
+                  ],
+                  conversation: result.conversation,
+                })
+              }
+            },
+            onError: () => {
+              if (match) updateLogSync(match.id, { status: "ERROR" })
+              toast.error("Action failed")
+            },
           },
-        },
-      )
+        )
+      }
+
+      if (conv) {
+        doExecute(conv)
+      } else {
+        streamChat({ message: `Confirmed: proceed with ${action.label}`, reviewMode: true, approvedTool: { name: action.toolName, args: action.toolArgs } })
+      }
     },
-    [setActionStatus, updateLog, addMessage, logs, messages, executeAction],
+    [setActionStatus, updateLogSync, addMessage, logs, messages, executeAction, streamChat],
   )
 
   const handleStop = useCallback(() => {
@@ -277,14 +311,15 @@ export default function ChatPage() {
     const fullContent = refContext ? `${refContext}\n\n${text}` : text
 
     addMessage({ role: "user", content: fullContent })
-    addLog({ status: "INFO", label: text, detail: "", operation: "system" })
+    addLogSync({ status: "INFO", label: text, detail: "", operation: "system" })
     setReferences([])
     setInput("")
 
     if (text) {
-      streamChat({ message: fullContent })
+      const lastAi = [...messages].reverse().find((m) => m.role === "ai" && m.conversation)
+      streamChat({ message: fullContent, conversation: lastAi?.conversation })
     }
-  }, [input, references, addMessage, addLog, streamChat, isStreaming])
+  }, [input, references, addMessage, addLogSync, streamChat, isStreaming, messages])
 
   return (
     <>
@@ -315,7 +350,7 @@ export default function ChatPage() {
                     onClick={() => {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "Summarize my inbox" })
-                      addLog({ status: "INFO", label: "Summarize my inbox", detail: "", operation: "system" })
+                      addLogSync({ status: "INFO", label: "Summarize my inbox", detail: "", operation: "system" })
                       streamChat({ message: "Summarize my inbox" })
                     }}
                     disabled={isStreaming}
@@ -333,7 +368,7 @@ export default function ChatPage() {
                     onClick={() => {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "Schedule a meeting" })
-                      addLog({ status: "INFO", label: "Schedule a meeting", detail: "", operation: "system" })
+                      addLogSync({ status: "INFO", label: "Schedule a meeting", detail: "", operation: "system" })
                       streamChat({ message: "Schedule a meeting" })
                     }}
                     disabled={isStreaming}
@@ -347,11 +382,11 @@ export default function ChatPage() {
                       <p className="text-[10px] text-[#8d90a2]">Find a time and invite</p>
                     </div>
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "What templates do I have?" })
-                      addLog({ status: "INFO", label: "What templates do I have?", detail: "", operation: "system" })
+                      addLogSync({ status: "INFO", label: "What templates do I have?", detail: "", operation: "system" })
                       streamChat({ message: "What templates do I have?" })
                     }}
                     disabled={isStreaming}
@@ -364,12 +399,12 @@ export default function ChatPage() {
                       <p className="text-xs font-medium text-[#e3e2e7]">View templates</p>
                       <p className="text-[10px] text-[#8d90a2]">Check saved responses</p>
                     </div>
-                  </button>
+                  </button> */}
                   <button
                     onClick={() => {
                       if (isStreaming) return
                       addMessage({ role: "user", content: "What can you do?" })
-                      addLog({ status: "INFO", label: "What can you do?", detail: "", operation: "system" })
+                      addLogSync({ status: "INFO", label: "What can you do?", detail: "", operation: "system" })
                       streamChat({ message: "What can you do?" })
                     }}
                     disabled={isStreaming}

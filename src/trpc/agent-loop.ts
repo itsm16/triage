@@ -76,7 +76,45 @@ const result = await corsair.gmail.api.messages.send({ raw: encoded, threadId: u
 return result;
 \`\`\`
 
-When the user provides a [Template: ...] block, use that template body. Replace {name} with the recipient's name.`;
+When the user provides a [Template: ...] block, use that template body. Replace {name} with the recipient's name.
+
+## Email send review
+Before sending, show the user the recipient, subject, and a preview of the body. If the user has already provided all details, show them and ask once to confirm. If all details are clear from the user's message (recipient, subject, body provided), just proceed with one confirmation. Do NOT repeatedly ask for confirmation after the user says yes.`;
+
+export const EVENT_INSTRUCTIONS = `---
+
+## Creating calendar events via run_script
+
+To create an event, use:
+\`\`\`js
+const result = await corsair.googlecalendar.api.events.create({
+  calendarId: "primary",
+  event: {
+    summary: "Event title",
+    description: "Event description",
+    start: { dateTime: "2025-01-01T10:00:00", timeZone: "America/New_York" },
+    end: { dateTime: "2025-01-01T11:00:00", timeZone: "America/New_York" },
+  },
+});
+return result;
+\`\`\`
+
+## Calendar conflict checking
+BEFORE creating any event, ALWAYS check the calendar for existing events at the proposed time.
+Use this to check availability:
+\`\`\`js
+const res = await corsair.googlecalendar.api.calendar.getAvailability({
+  timeMin: "2025-01-01T09:00:00Z",
+  timeMax: "2025-01-01T12:00:00Z",
+  items: [{ id: "primary" }],
+});
+const busy = res.calendars?.primary?.busy ?? [];
+return busy;
+\`\`\`
+
+If there IS a conflict (busy slots exist at the proposed time), DO NOT create the event automatically.
+Instead, tell the user about the conflict, show the conflicting events, and ask how they would like to proceed (reschedule or still add it).
+Only proceed with creating if the user explicitly confirms despite the conflict.`;
 
 const SYSTEM_PROMPT = `You have access to Corsair connected to the user's Gmail and Google Calendar.
 
@@ -95,6 +133,8 @@ Use markdown in your responses for formatting (bold, bullet lists, etc.).
 ${EMAIL_SAFETY}
 
 ${SEND_EMAIL_INSTRUCTIONS}
+
+${EVENT_INSTRUCTIONS}
 
 Continue using tools step by step until the task is complete.`;
 
@@ -117,6 +157,8 @@ The user wants to REVIEW each action before it executes. So when you are ready t
 ${EMAIL_SAFETY}
 
 ${SEND_EMAIL_INSTRUCTIONS}
+
+${EVENT_INSTRUCTIONS}
 
 Continue using tools step by step until the task is complete.`;
 

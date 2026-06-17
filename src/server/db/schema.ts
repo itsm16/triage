@@ -149,6 +149,17 @@ export const corsairEvents = pgTable('corsair_events', {
     status: text('status'),
 });
 
+export const chatLogs = pgTable("triage_chat_logs", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  userId: text("user_id").notNull(),
+  label: text("label").notNull(),
+  detail: text("detail").notNull().default(""),
+  status: text("status").notNull().default("INFO"),
+  operation: text("operation").notNull().default("system"),
+  time: text("time").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+});
+
 export const workflows = createTable("workflow", (d) => ({
   id: d.text().primaryKey().$defaultFn(() => randomUUID()),
   name: d.text().notNull(),

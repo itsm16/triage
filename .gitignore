@@ -11,6 +11,8 @@ rough.txt
 setup.md
 learnings.md
 .opencode
+private-key
+private-key.pub
 
 # database
 /prisma/db.sqlite

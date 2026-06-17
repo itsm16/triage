@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
       result,
     );
   } else if (existingConversation) {
-    conversation = existingConversation;
+    conversation = message
+      ? `${existingConversation}\n\nUser:\n${message}`
+      : existingConversation;
   } else {
     conversation = buildConversation(
       reviewMode ? SYSTEM_PROMPT_REVIEW : SYSTEM_PROMPT,
@@ -71,7 +73,10 @@ export async function POST(req: NextRequest) {
           }
 
           if (!toolCall) {
-            send({ type: "done", content: fullText, conversation });
+            const updatedConversation = fullText
+              ? `${conversation}\n\nAssistant:\n${fullText}`
+              : conversation;
+            send({ type: "done", content: fullText, conversation: updatedConversation });
             controller.close();
             return;
           }

@@ -1,0 +1,12 @@
+.next
+node_modules
+setup.md
+rough.txt
+private-key
+private-key.pub
+.git
+.github
+.env
+Dockerfile
+.dockerignore
+start-database.sh
