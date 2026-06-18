@@ -503,14 +503,16 @@ export default function Canvas({ workflowId, preset }: { workflowId?: string; pr
                         e.dataTransfer.setData("application/reactflow", type)
                         e.dataTransfer.effectAllowed = "move"
                       }}
-                      className={`group flex flex-col items-center gap-2 rounded-lg border border-[#434656]/10 bg-[#121317] p-3 transition-all duration-300 hover:border-[#b6c4ff]/30 ${cat.key === "triggers" || cat.key === "data" || cat.key === "content" ? "" : "w-full text-left"}`}
+                      className={`group flex flex-col mt-2 gap-2 rounded-lg border border-[#434656]/10 bg-[#121317] p-3 transition-all duration-300 hover:border-[#b6c4ff]/30 w-full`}
                     >
-                      <div className={`flex size-8 items-center justify-center rounded ${bg} group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className={`size-4 ${color}`} />
+                      <div className="flex gap-2">
+                        <div className={`flex size-8 items-center justify-center rounded ${bg} group-hover:scale-110 transition-transform duration-300`}>
+                          <Icon className={`size-6 ${color}`} />
+                        </div>
+                        <span className="text-xs font-medium self-center text-[#e3e2e7]">{label}</span>
                       </div>
-                      <span className="text-[10px] font-medium text-[#e3e2e7]">{label}</span>
                       <div className="grid grid-rows-[0fr] transition-all duration-300 group-hover:grid-rows-[1fr]">
-                        <p className="overflow-hidden text-[8px] text-[#8d90a2] leading-tight opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        <p className="overflow-hidden text-left text-xs text-[#8d90a2] leading-tight opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                           {description}
                         </p>
                       </div>

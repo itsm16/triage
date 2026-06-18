@@ -168,6 +168,16 @@ export const workflows = createTable("workflow", (d) => ({
   updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
 }));
 
+export const templates = createTable("template", (d) => ({
+  id: d.text().primaryKey().$defaultFn(() => randomUUID()),
+  name: d.text().notNull(),
+  subject: d.text().notNull().default(""),
+  body: d.text().notNull().default(""),
+  userId: d.text().notNull(),
+  createdAt: d.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+}));
+
 export const workflowNodes = createTable("workflow_node", (d) => ({
   id: d.text().primaryKey().$defaultFn(() => randomUUID()),
   workflowId: d.text().notNull().references(() => workflows.id, { onDelete: "cascade" }),

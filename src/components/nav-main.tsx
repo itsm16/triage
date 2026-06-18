@@ -23,7 +23,7 @@ import { ChevronRightIcon } from "lucide-react"
 function isSubItemActive(subUrl: string, pathname: string, searchParams: URLSearchParams): boolean {
   const [subPath, qs] = subUrl.split("?")
   if (pathname !== subPath) return false
-  if (!qs) return true
+  if (!qs) return !searchParams.toString()
   const params = new URLSearchParams(qs)
   for (const [key, val] of params) {
     if (searchParams.get(key) !== val) return false
@@ -54,17 +54,21 @@ export function NavMain({
       <SidebarMenu>
         {items.map((item) => {
           const hasSub = item.items && item.items.length > 0
+          const subActive = hasSub ? item.items?.some((sub) => {
+            if ("items" in sub) return sub.items.some((n) => isSubItemActive(n.url, pathname, searchParams))
+            return isSubItemActive(sub.url, pathname, searchParams)
+          }) : false
           if (hasSub) {
             return (
               <Collapsible
                 key={item.title}
                 asChild
-                defaultOpen={item.isActive}
+                defaultOpen={item.isActive ?? subActive}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip={item.title}>
+                    <SidebarMenuButton tooltip={item.title} isActive={subActive}>
                       {item.icon}
                       <span>{item.title}</span>
                       <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -84,7 +88,7 @@ export function NavMain({
                                   </SidebarMenuSubButton>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                  <div className="ml-3 border-l border-[#434656]/20 pl-2 mt-0.5 space-y-0.5">
+                                  <SidebarMenuSub className="ml-3 border-l border-[#434656]/20 pl-2 mt-0.5">
                                     {subItem.items.map((nested) => (
                                       <SidebarMenuSubItem key={nested.title}>
                                         <SidebarMenuSubButton asChild isActive={isSubItemActive(nested.url, pathname, searchParams)}>
@@ -94,7 +98,7 @@ export function NavMain({
                                         </SidebarMenuSubButton>
                                       </SidebarMenuSubItem>
                                     ))}
-                                  </div>
+                                  </SidebarMenuSub>
                                 </CollapsibleContent>
                               </SidebarMenuSubItem>
                             </Collapsible>

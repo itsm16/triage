@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   const url = new URL(request?.url);
   const tenantId = url.searchParams.get("tenantId") ?? url.searchParams.get("tenant_id");
-  console.log("tenantId", tenantId);
   const result = await processWebhook(
     corsair,
     Object.fromEntries(request.headers as Iterable<[string, string]>),
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
       tenantId: tenantId ?? undefined,
     },
   );
-
+  console.log(request)
   if(result.response !== undefined){
     return NextResponse.json(result.response)
   }

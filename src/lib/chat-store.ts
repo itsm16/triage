@@ -75,6 +75,7 @@ interface ChatStore {
 }
 
 let msgId = 1
+let logClientId = 1
 
 function now() {
   return new Date().toLocaleTimeString("en-US", { hour12: false })
@@ -99,7 +100,7 @@ export const useChatStore = create<ChatStore>()((set) => ({
       ),
     })),
   addLog: (log: Omit<LogEntry, "id" | "time">) => {
-    const id = `log_${msgId++}`
+    const id = `log_client_${logClientId++}`
     set((s) => {
       const newLog = { ...log, id, time: now() }
       return { logs: [...s.logs, newLog] }

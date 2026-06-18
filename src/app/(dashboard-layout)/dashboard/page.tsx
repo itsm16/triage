@@ -4,6 +4,7 @@ import { api } from "~/trpc/server";
 import { getSession } from "~/server/better-auth/server";
 import { EventsSection } from "~/components/dashboard/events-section";
 import { DashboardLogs } from "~/components/dashboard/dashboard-logs";
+import { DashboardEmailCard } from "~/components/dashboard/dashboard-email-card";
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ connected?: string; error?: string }>
@@ -11,14 +12,15 @@ export default async function DashboardPage(props: {
   const searchParams = await props.searchParams;
   const session = await getSession();
 
-  const connectedPlugins = await api.corsair.getConnectedPlugins();
+  const [connectedPlugins, important] = await Promise.all([
+    api.corsair.getConnectedPlugins(),
+    api.corsair.listImportantMessages(),
+  ]);
   const connectedNames = new Set(connectedPlugins);
 
   if (connectedNames.size === 0) {
     return <ConnectPrompt searchParams={searchParams} />;
   }
-
-  const important = await api.corsair.listImportantMessages();
 
   return <DashboardShell searchParams={searchParams} important={important} userName={session?.user?.name ?? null} />;
 }
@@ -135,20 +137,13 @@ async function DashboardShell({
                   <p className="py-8 text-center text-sm text-[#8d90a2]">No important unread emails</p>
                 ) : (
                   important.map((msg) => (
-                    <Link
+                    <DashboardEmailCard
                       key={msg.id}
-                      href="/email"
-                      className="flex items-start gap-3 rounded-lg border border-[#434656]/10 bg-[#121317] px-4 py-3 transition-colors hover:border-[#b6c4ff]/20"
-                    >
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#b6c4ff]/10">
-                        <HashIcon className="size-3.5 fill-[#b6c4ff] text-[#b6c4ff]" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-[#e3e2e7]">{msg.from}</p>
-                        <p className="truncate text-sm font-semibold text-[#c3c5d9]">{msg.subject}</p>
-                        <p className="mt-0.5 line-clamp-1 text-xs text-[#8d90a2]">{msg.snippet}</p>
-                      </div>
-                    </Link>
+                      id={msg.id ?? ""}
+                      subject={msg.subject}
+                      from={msg.from}
+                      snippet={msg.snippet}
+                    />
                   ))
                 )}
               </div>

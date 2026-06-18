@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import dynamic from "next/dynamic"
-import { Plus, Trash2, ArrowLeft, Zap, CalendarClock, Timer } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Zap } from "lucide-react"
 import { api } from "~/trpc/react"
 import { toast } from "sonner"
 
@@ -13,8 +13,8 @@ const TRIGGER_NOW = "__triggernow__"
 
 const cards = [
   { icon: Zap, label: "Trigger Now", desc: "Run a flow immediately", color: "text-yellow-400" },
-  { icon: CalendarClock, label: "Report Daily", desc: "Schedule daily report", color: "text-blue-400" },
-  { icon: Timer, label: "One Time", desc: "Run once on event", color: "text-green-400" },
+  // { icon: CalendarClock, label: "Report Daily", desc: "Schedule daily report", color: "text-blue-400" },
+  // { icon: Timer, label: "One Time", desc: "Run once on event", color: "text-green-400" },
 ]
 
 export default function AutomationPage() {

@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { X, Plus, Trash2, Search, Mail as MailIcon } from "lucide-react"
 import { NODE_DEF_MAP, type NodeType } from "./node-types"

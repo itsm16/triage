@@ -43,10 +43,11 @@ const EMAIL_SAFETY = `---
 - When listing or referencing emails, format them like this:
 
 %%EMAILS%%
-- Subject: "..." — From: ... — Date: ...
+- Subject: "..." — From: ... — Date: ... — ID: ...
 %%/EMAILS%%
 
-The frontend will render these blocks with a "View" button that links to the email page.
+The frontend will render these blocks with a "View" button that opens an email preview panel.
+Include the message ID so the frontend can fetch the full email body.
 Do NOT include email body text in your response. Never repeat or summarize email contents.
 
 ## Sensitive information protection

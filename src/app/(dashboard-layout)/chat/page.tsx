@@ -108,7 +108,6 @@ export default function ChatPage() {
       status: log.status,
       operation: log.operation ?? "system",
       time: new Date().toLocaleTimeString("en-US", { hour12: false }),
-      id,
     })
     return id
   }, [addLog, saveLogMutation])

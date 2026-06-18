@@ -9,6 +9,7 @@ interface EmailListItem {
   from: string
   subject: string
   date: string
+  labelIds?: string[]
 }
 
 interface EmailListProps {
@@ -139,10 +140,13 @@ export function EmailList({
                 : "border-transparent hover:bg-[#292a2e]"
               }`}
             >
+              {msg.labelIds?.includes("UNREAD") && (
+                <span className="absolute left-4 top-3 size-[5] rounded-full bg-[#0b5cdf]" />
+              )}
               <div className="flex items-start gap-2">
                 <span
                   onClick={(e) => handleCheckClick(e, idx)}
-                  className={`mt-1 flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border transition-colors ${(msg.id && selectedIds.has(msg.id))
+                  className={`mt-4 flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border transition-colors ${(msg.id && selectedIds.has(msg.id))
                     ? "border-[#b6c4ff] bg-[#b6c4ff]"
                     : "border-[#434656]/40 bg-[#1a1b1f] hover:border-[#b6c4ff]/60"
                   }`}

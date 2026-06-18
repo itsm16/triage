@@ -1,7 +1,9 @@
+"use client"
+
 import { memo } from "react"
-import { Handle, Position, type NodeProps } from "@xyflow/react"
+import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react"
 import { NODE_DEF_MAP, type NodeType } from "./node-types"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { Loader2, AlertTriangle, X } from "lucide-react"
 
 function configSummary(type: NodeType, config: Record<string, unknown>): string {
   switch (type) {
@@ -26,7 +28,8 @@ function configSummary(type: NodeType, config: Record<string, unknown>): string 
   }
 }
 
-function WorkflowNode({ data, selected }: NodeProps) {
+function WorkflowNode({ data, selected, id }: NodeProps) {
+  const { getEdges, deleteElements } = useReactFlow()
   const { type, label, config, execState } = data as {
     type: NodeType
     label: string
@@ -41,20 +44,48 @@ function WorkflowNode({ data, selected }: NodeProps) {
   const isError = execState === "error"
   const isTrigger = type === "trigger"
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    void deleteElements({ nodes: [{ id }] })
+  }
+
+  const handleTargetClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const edges = getEdges()
+    const edge = edges.find((edg) => edg.target === id)
+    if (edge) void deleteElements({ edges: [edge] })
+  }
+
+  const handleSourceClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const edges = getEdges()
+    const edge = edges.find((edg) => edg.source === id)
+    if (edge) void deleteElements({ edges: [edge] })
+  }
+
   return (
     // main block
     <div
-      className={`relative min-w-[220px] rounded-lg shadow-xl border ${
+      className={`group relative min-w-[220px] rounded-lg shadow-xl border ${
         selected
           ? "border-[#0055ff] shadow-[0_0_0_1px_#0055ff]"
           : "border-[#434656]/20 hover:border-[#b6c4ff]/50"
-      } bg-[#1e1f23]`}
+      } bg-[#121317]`}
     >
+      {selected && (
+        <button
+          onClick={handleDelete}
+          className="absolute -top-2 -right-2 z-20 flex size-5 items-center justify-center rounded-full bg-red-500/80 text-white shadow-md transition-colors hover:bg-red-500"
+        >
+          <X className="size-3" />
+        </button>
+      )}
       {!isTrigger && (
         <Handle
           type="target"
           position={Position.Top}
-          className="!w-3 !h-3 !-top-0 !left-1/2 !-translate-x-1/2 !-translate-y-1/2 !bg-[#8d90a2] !rounded-full !border-2 !border-[#121317] group-hover:!bg-[#b6c4ff] !cursor-crosshair"
+          onClick={handleTargetClick}
+          className="!w-3 !h-3 !-top-0 !left-1/2 !-translate-x-1/2 !-translate-y-1/2 !bg-[#8d90a2] !rounded-full !border-2 !border-[#121317] group-hover:!bg-[#b6c4ff] !cursor-pointer"
         />
       )}
         <div className="flex items-center justify-between border-b border-[#434656]/10 px-3 py-2.5">
@@ -86,7 +117,8 @@ function WorkflowNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className=" !w-3 !h-3 !-bottom-0 !left-1/2 !-translate-x-1/2 !translate-y-1/2 !bg-[#8d90a2] !rounded-full !border-2 !border-[#121317] group-hover:!bg-[#b6c4ff] !cursor-crosshair"
+        onClick={handleSourceClick}
+        className=" !w-3 !h-3 !-bottom-0 !left-1/2 !-translate-x-1/2 !translate-y-1/2 !bg-[#8d90a2] !rounded-full !border-2 !border-[#121317] group-hover:!bg-[#b6c4ff] !cursor-pointer"
       />
     </div>
   )

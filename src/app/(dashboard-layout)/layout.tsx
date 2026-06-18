@@ -7,6 +7,7 @@ import { corsairAccounts } from "~/server/db/schema"
 import { Sidebar } from "~/components/sidebar"
 import { SidebarProvider, SidebarInset } from "~/components/ui/sidebar"
 import { ComposePanel } from "~/components/compose-panel"
+import { EmailPreviewPanel } from "~/components/email-preview-panel"
 import { Loader } from "~/components/loader"
 import { getSession } from "~/server/better-auth/server"
 import { CorsairGuard } from "~/components/corsair-guard"
@@ -56,6 +57,7 @@ export default async function DashboardLayout({
         </SidebarInset>
       </SidebarProvider>
       <ComposePanel />
+      <EmailPreviewPanel />
     </CorsairGuard>
   )
 }

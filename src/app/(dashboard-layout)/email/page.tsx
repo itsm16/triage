@@ -11,13 +11,13 @@ import {
 } from "lucide-react"
 import { api } from "~/trpc/react"
 import { useLoaderStore } from "~/lib/loader-store"
+import { useNotificationStore } from "~/lib/notification-store"
 import { toast } from "sonner"
 import { useComposeStore } from "~/lib/compose-store"
 import { EmailList } from "~/components/email/email-list"
 import { EmailThread } from "~/components/email/email-thread"
 
 const TAB_TO_CATEGORY: Record<string, string> = {
-  primary: "INBOX",
   updates: "CATEGORY_UPDATES",
   social: "CATEGORY_SOCIAL",
   promotions: "CATEGORY_PROMOTIONS",
@@ -26,18 +26,24 @@ const TAB_TO_CATEGORY: Record<string, string> = {
   trash: "TRASH",
 }
 
+const TAB_TO_QUERY: Record<string, string> = {
+  primary: "category:primary",
+}
+
 const CATEGORY_TO_TAB = Object.fromEntries(
   Object.entries(TAB_TO_CATEGORY).map(([k, v]) => [v, k])
 )
 
 const KNOWN_MODIFIERS = new Set([
   ...Object.keys(TAB_TO_CATEGORY),
+  ...Object.keys(TAB_TO_QUERY),
   "all",
 ])
 
 function parseSearch(
   input: string,
-  currentCategory: string | undefined
+  currentLabel: string | undefined,
+  currentQuery: string | undefined
 ): { labelIds: string[] | undefined; query: string } {
   const match = /:(\w+)/.exec(input)
   if (match?.[1] != null && match?.index != null) {
@@ -47,16 +53,29 @@ function parseSearch(
     const rest = (before + " " + after).trim()
 
     if (mod === "all") return { labelIds: undefined, query: rest }
+
+    const tabQuery = TAB_TO_QUERY[mod]
+    if (tabQuery) return { labelIds: undefined, query: tabQuery + (rest ? ` ${rest}` : "") }
+
     const label = TAB_TO_CATEGORY[mod]
     if (label) return { labelIds: [label], query: rest }
   }
+
+  if (currentQuery) {
+    return { labelIds: undefined, query: currentQuery + (input ? ` ${input}` : "") }
+  }
   return {
-    labelIds: currentCategory ? [currentCategory] : undefined,
+    labelIds: currentLabel ? [currentLabel] : undefined,
     query: input,
   }
 }
 
-function contextLabel(parsedLabelIds: string[] | undefined): string {
+function contextLabel(parsedLabelIds: string[] | undefined, parsedQuery: string | undefined): string {
+  if (parsedQuery) {
+    for (const [tab, query] of Object.entries(TAB_TO_QUERY)) {
+      if (parsedQuery === query || parsedQuery.startsWith(query + " ")) return tab
+    }
+  }
   if (!parsedLabelIds || parsedLabelIds.length === 0) return "all"
   const id = parsedLabelIds[0]
   if (!id) return "all"
@@ -73,8 +92,11 @@ export default function EmailPage() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showReplies, setShowReplies] = useState(true)
-  const [category, setCategory] = useState<string | undefined>(undefined)
+  const [currentLabel, setCurrentLabel] = useState<string | undefined>(undefined)
+  const [currentQuery, setCurrentQuery] = useState<string | undefined>(undefined)
   const setLoading = useLoaderStore((s) => s.setLoading)
+  const notifCount = useNotificationStore((s) => s.count)
+  const resetNotifs = useNotificationStore((s) => s.reset)
 
   const [searchInput, setSearchInput] = useState("")
   const [debouncedInput, setDebouncedInput] = useState("")
@@ -98,13 +120,17 @@ export default function EmailPage() {
   const tabParam = searchParams.get("tab")
 
   useEffect(() => {
-    let newCat: string | undefined
-    if (tabParam && TAB_TO_CATEGORY[tabParam]) {
-      newCat = TAB_TO_CATEGORY[tabParam]
-    } else {
-      newCat = undefined
+    let newLabel: string | undefined
+    let newQuery: string | undefined
+    if (tabParam) {
+      if (TAB_TO_QUERY[tabParam]) {
+        newQuery = TAB_TO_QUERY[tabParam]
+      } else if (TAB_TO_CATEGORY[tabParam]) {
+        newLabel = TAB_TO_CATEGORY[tabParam]
+      }
     }
-    setCategory(newCat)
+    setCurrentLabel(newLabel)
+    setCurrentQuery(newQuery)
     setPageToken(undefined)
     setTokens([])
     setActiveId(null)
@@ -124,7 +150,7 @@ export default function EmailPage() {
     }
   }, [searchInput])
 
-  const parsed = parseSearch(debouncedInput, category)
+  const parsed = parseSearch(debouncedInput, currentLabel, currentQuery)
   const utils = api.useUtils()
   const queryInput = { pageToken, labelIds: parsed.labelIds, q: parsed.query || undefined }
 
@@ -140,7 +166,7 @@ export default function EmailPage() {
     { enabled: !!activeThreadId }
   )
 
-  const isTrash = (parsed.labelIds ?? (category ? [category] : [])).includes("TRASH")
+  const isTrash = (parsed.labelIds ?? (currentLabel ? [currentLabel] : [])).includes("TRASH")
 
   function optimisticRemove(id: string) {
     const prev = utils.corsair.listMessages.getData(queryInput)
@@ -148,6 +174,20 @@ export default function EmailPage() {
       utils.corsair.listMessages.setData(queryInput, {
         ...prev,
         messages: prev.messages.filter(m => m.id !== id),
+      })
+    }
+  }
+
+  function optimisticMarkRead(id: string) {
+    const prev = utils.corsair.listMessages.getData(queryInput)
+    if (prev) {
+      utils.corsair.listMessages.setData(queryInput, {
+        ...prev,
+        messages: prev.messages.map(m =>
+          m.id === id
+            ? { ...m, labelIds: m.labelIds?.filter(l => l !== "UNREAD") ?? [] }
+            : m
+        ),
       })
     }
   }
@@ -350,6 +390,8 @@ export default function EmailPage() {
   const handleSelectMessage = (id: string, threadId: string) => {
     setActiveId(id)
     setActiveThreadId(threadId)
+    optimisticMarkRead(id)
+    modifyMsg.mutate({ id, removeLabelIds: ["UNREAD"] })
   }
 
   const handleClearSearch = () => {
@@ -386,7 +428,7 @@ export default function EmailPage() {
         <div className="flex w-full max-w-md items-center rounded border border-[#434656]/20 bg-[#1e1f23] px-3 py-1.5">
           <Search className="mr-2 size-4 shrink-0 text-[#8d90a2]" />
           <span className="mr-1 shrink-0 rounded bg-[#b6c4ff]/10 px-1.5 py-0.5 text-xs font-medium text-[#b6c4ff]">
-            :{contextLabel(parsed.labelIds)}
+            :{contextLabel(parsed.labelIds, parsed.query)}
           </span>
           <input
             ref={inputRef}
@@ -431,7 +473,17 @@ export default function EmailPage() {
               </button>
             </>
           )}
-          <Bell className="size-5 cursor-pointer text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
+          <button
+            onClick={() => { resetNotifs(); void refetch() }}
+            className="relative flex items-center text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]"
+          >
+            <Bell className="size-5" />
+            {notifCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                {notifCount > 9 ? "9+" : notifCount}
+              </span>
+            )}
+          </button>
           <History className="size-5 cursor-pointer text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
         </div>
       </header>

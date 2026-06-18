@@ -13,6 +13,7 @@ learnings.md
 .opencode
 private-key
 private-key.pub
+agent-loop.md
 
 # database
 /prisma/db.sqlite

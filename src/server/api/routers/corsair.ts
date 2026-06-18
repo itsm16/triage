@@ -52,7 +52,7 @@ export const corsairRouter = createTRPCRouter({
 
     const full = await Promise.all(
       messages.map((m) =>
-        ctx.tenant.gmail.api.messages.get({ id: m.id!, format: "full" })
+        ctx.tenant.gmail.api.messages.get({ id: m.id!, format: "metadata" })
       )
     );
 
@@ -83,7 +83,7 @@ export const corsairRouter = createTRPCRouter({
 
       const full = await Promise.all(
         messages.map((m) =>
-          ctx.tenant.gmail.api.messages.get({ id: m.id!, format: "full" })
+          ctx.tenant.gmail.api.messages.get({ id: m.id!, format: "metadata"})
         )
       );
 
@@ -91,7 +91,7 @@ export const corsairRouter = createTRPCRouter({
         messages: full.map((m) => ({
           id: m.id,
           threadId: m.threadId,
-          snippet: m.snippet,
+          snippet: m.snippet ?? "",
           subject: extractHeader(m, "Subject") ?? "(no subject)",
           from: extractHeader(m, "From") ?? "",
           date: extractHeader(m, "Date") ?? "",
@@ -355,7 +355,6 @@ export const corsairRouter = createTRPCRouter({
 
   saveLog: protectedProcedure
     .input(z.object({
-      id: z.string().optional(),
       label: z.string(),
       detail: z.string().default(""),
       status: z.string().default("INFO"),
@@ -370,7 +369,6 @@ export const corsairRouter = createTRPCRouter({
         status: input.status,
         operation: input.operation,
         time: input.time,
-        ...(input.id ? { id: input.id } : {}),
       });
       return { success: true };
     }),
