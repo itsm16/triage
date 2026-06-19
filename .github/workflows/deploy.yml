@@ -55,7 +55,7 @@ jobs:
             :80 {
                 reverse_proxy triage:3000
             }
-            ${{ secrets.DOMAIN }} {
+            ${{ vars.DOMAIN }} {
                 reverse_proxy triage:3000
             }
             EOF
