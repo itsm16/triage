@@ -10,11 +10,11 @@ import {
   X,
 } from "lucide-react"
 import { api } from "~/trpc/react"
-import { useLoaderStore } from "~/lib/loader-store"
+
 import { useNotificationStore } from "~/lib/notification-store"
 import { toast } from "sonner"
 import { useComposeStore } from "~/lib/compose-store"
-import { EmailList } from "~/components/email/email-list"
+import { EmailList, type EmailListItem } from "~/components/email/email-list"
 import { EmailThread } from "~/components/email/email-thread"
 
 const TAB_TO_CATEGORY: Record<string, string> = {
@@ -94,7 +94,6 @@ export default function EmailPage() {
   const [showReplies, setShowReplies] = useState(true)
   const [currentLabel, setCurrentLabel] = useState<string | undefined>(undefined)
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(undefined)
-  const setLoading = useLoaderStore((s) => s.setLoading)
   const notifCount = useNotificationStore((s) => s.count)
   const resetNotifs = useNotificationStore((s) => s.reset)
 
@@ -154,13 +153,83 @@ export default function EmailPage() {
   const utils = api.useUtils()
   const queryInput = { pageToken, labelIds: parsed.labelIds, q: parsed.query || undefined }
 
-  const { data, isLoading, refetch, isFetching } = api.corsair.listMessages.useQuery(queryInput)
+  const { data, refetch } = api.corsair.listMessages.useQuery(queryInput)
+
+  const [streamMessages, setStreamMessages] = useState<EmailListItem[]>([])
+  const [streamMeta, setStreamMeta] = useState<{ nextPageToken: string | null; totalExpected: number } | null>(null)
+  const streamAbortRef = useRef<AbortController | null>(null)
+  const prevKeyRef = useRef("")
+
+  const requestBody = JSON.stringify(queryInput)
+  const queryKey = requestBody
+  if (queryKey !== prevKeyRef.current) {
+    prevKeyRef.current = queryKey
+    streamAbortRef.current?.abort()
+    streamAbortRef.current = null
+    setStreamMessages([])
+    setStreamMeta(null)
+  }
 
   useEffect(() => {
-    setLoading(isLoading && !debouncedInput)
-    return () => setLoading(false)
-  }, [isLoading, debouncedInput, setLoading])
+    const controller = new AbortController()
+    streamAbortRef.current = controller
+    const signal = controller.signal
 
+    const run = async () => {
+      try {
+        const response = await fetch("/api/email/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+          signal,
+        })
+
+        if (!response.ok) {
+          console.error("email stream: HTTP", response.status)
+          return
+        }
+
+        const reader = response.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done || signal.aborted) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? ""
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue
+            if (signal.aborted) break
+
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            const event: { type: string; nextPageToken?: string | null; ids?: string[]; message?: EmailListItem } = JSON.parse(line.slice(6))
+
+            if (event.type === "ids") {
+              setStreamMeta({ nextPageToken: event.nextPageToken ?? null, totalExpected: event.ids?.length ?? 0 })
+            } else if (event.type === "message") {
+              setStreamMessages((prev) => [...prev, event.message!])
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return
+        console.error("email stream error:", err)
+      }
+    }
+
+    void run()
+
+    return () => {
+      controller.abort()
+    }
+  }, [queryKey, requestBody])
+
+  const displayMessages = data?.messages ?? streamMessages
+  const totalExpected = streamMeta?.totalExpected ?? 20
   const activeThread = api.corsair.getThread.useQuery(
     { id: activeThreadId! },
     { enabled: !!activeThreadId }
@@ -202,8 +271,7 @@ export default function EmailPage() {
   const createEvent = api.corsair.createEvent.useMutation()
   const openCompose = useComposeStore((s) => s.open)
 
-  const messages = data?.messages ?? []
-  const nextPageToken = data?.nextPageToken
+  const nextPageToken = streamMeta?.nextPageToken ?? data?.nextPageToken
 
   const goNext = () => {
     if (nextPageToken) {
@@ -280,7 +348,7 @@ export default function EmailPage() {
   }
 
   const handleSelectAll = () => {
-    const allIds = messages.map((m) => m.id).filter(Boolean) as string[]
+    const allIds = displayMessages.map((m) => m.id).filter(Boolean) as string[]
     if (allIds.every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set())
     } else {
@@ -289,7 +357,7 @@ export default function EmailPage() {
   }
 
   const handleSelectRange = (start: number, end: number) => {
-    const ids = messages
+    const ids = displayMessages
       .slice(start, end + 1)
       .map((m) => m.id)
       .filter(Boolean) as string[]
@@ -442,20 +510,13 @@ export default function EmailPage() {
             }}
             onKeyDown={handleKeyDown}
           />
-          {(searchInput || isLoading) && (
-            <div className="ml-1 flex shrink-0 items-center gap-1">
-              {isFetching && (
-                <div className="size-3.5 animate-spin rounded-full border-2 border-[#b6c4ff]/20 border-t-[#b6c4ff]" />
-              )}
-              {searchInput && (
-                <button
-                  onClick={handleClearSearch}
-                  className="rounded p-0.5 text-[#8d90a2] transition-colors hover:text-[#e3e2e7]"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
+          {searchInput && (
+            <button
+              onClick={handleClearSearch}
+              className="ml-auto rounded p-0.5 text-[#8d90a2] transition-colors hover:text-[#e3e2e7]"
+            >
+              <X className="size-3.5" />
+            </button>
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -490,14 +551,14 @@ export default function EmailPage() {
 
       <div className="flex h-[calc(100vh-4rem)] items-start overflow-y-hidden">
         <EmailList
-          messages={messages}
-          isLoading={isLoading}
+          messages={displayMessages}
+          totalExpected={totalExpected}
           activeId={activeId}
           selectedIds={selectedIds}
           tokensLength={tokens.length}
           pageNum={pageNum}
           nextPageToken={nextPageToken}
-          messagesCount={messages.length}
+          messagesCount={displayMessages.length}
           onSelectMessage={handleSelectMessage}
           onToggleSelect={toggleSelect}
           onSelectAll={handleSelectAll}

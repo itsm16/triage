@@ -10,3 +10,4 @@ private-key.pub
 Dockerfile
 .dockerignore
 start-database.sh
+Caddyfile
