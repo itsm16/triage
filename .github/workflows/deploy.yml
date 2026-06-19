@@ -51,6 +51,12 @@ jobs:
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             EOF
             
+            cat > /home/ubuntu/Caddyfile <<EOF
+            :80 {
+                reverse_proxy triage:3000
+            }
+            EOF
+
             sudo docker network create triage-network || true
             sudo docker stop triage || true
             sudo docker rm triage || true
@@ -65,6 +71,7 @@ jobs:
               --restart unless-stopped \
               --env-file .env \
               itsm16/new-triage:latest
+
             sudo docker run -d \
               --name caddy \
               --network triage-network \
