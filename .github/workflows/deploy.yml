@@ -39,7 +39,27 @@ jobs:
           key: ${{ secrets.PRIVATE_KEY }}
           # got into ec2
           script: |
+            cat > .env <<EOF
+            BETTER_AUTH_CLIENT_ID=${{ secrets.BETTER_AUTH_CLIENT_ID }}
+            BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+            BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+            APP_URL=${{ vars.APP_URL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            CORSAIR_KEK=${{ secrets.CORSAIR_KEK }}
+            TOPIC=${{ secrets.TOPIC }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            EOF
+
             sudo docker pull itsm16/new-triage:latest
+
             sudo docker stop triage || true
             sudo docker rm triage || true
-            sudo docker run -d --name triage -p 3000:3000 itsm16/new-triage:latest
+
+            sudo docker run -d \
+              --name triage \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              --env-file .env \
+              itsm16/new-triage:latest
+
+            rm .env
