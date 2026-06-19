@@ -52,15 +52,7 @@ jobs:
             EOF
 
             sudo docker pull itsm16/new-triage:latest
+            sudo docker compose up -d
 
-            sudo docker stop triage || true
-            sudo docker rm triage || true
-
-            sudo docker run -d \
-              --name triage \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              --env-file .env \
-              itsm16/new-triage:latest
-
+            sudo docker image prune -f
             rm .env
