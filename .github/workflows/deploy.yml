@@ -55,6 +55,9 @@ jobs:
             :80 {
                 reverse_proxy triage:3000
             }
+            ${{ secrets.DOMAIN }} {
+                reverse_proxy triage:3000
+            }
             EOF
 
             sudo docker network create triage-network || true

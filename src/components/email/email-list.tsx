@@ -2,8 +2,9 @@
 
 import { useState, useCallback } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Skeleton } from "~/components/ui/skeleton"
 
-interface EmailListItem {
+export interface EmailListItem {
   id?: string
   threadId?: string
   from: string
@@ -14,7 +15,7 @@ interface EmailListItem {
 
 interface EmailListProps {
   messages: EmailListItem[]
-  isLoading: boolean
+  totalExpected?: number
   activeId: string | null
   selectedIds: Set<string>
   tokensLength: number
@@ -31,7 +32,7 @@ interface EmailListProps {
 
 export function EmailList({
   messages,
-  isLoading,
+  totalExpected = 20,
   activeId,
   selectedIds,
   tokensLength,
@@ -65,6 +66,8 @@ export function EmailList({
     setLastClickedIndex(idx)
   }, [messages, lastClickedIndex, onToggleSelect, onSelectRange])
 
+  const slotCount = messages.length > 0 ? Math.max(messages.length, totalExpected) : totalExpected
+
   return (
     <section className="sticky top-0 flex w-[420px] shrink-0 flex-col border-r border-[#434656]/10 bg-[#0d0e12] h-full border">
       <div className="flex items-center justify-between border-b border-[#434656]/10 px-4 py-3">
@@ -87,7 +90,9 @@ export function EmailList({
             <ChevronRight className="size-4" />
           </button>
         </div>
-        <span className="text-xs text-[#434656]">{messagesCount} emails</span>
+        <span className="text-xs text-[#434656]">
+          {totalExpected > 0 && messages.length === 0 ? "..." : `${messagesCount} emails`}
+        </span>
       </div>
 
       <div className="flex items-center gap-2 border-b border-[#434656]/10 px-4 py-1.5">
@@ -118,68 +123,86 @@ export function EmailList({
       </div>
 
       <div className="h-[calc(100vh-156px)] overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#434656]/50 [&::-webkit-scrollbar-track]:bg-transparent">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-sm text-[#8d90a2]">
-            Loading...
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 && totalExpected === 0 ? (
           <div className="flex items-center justify-center py-20 text-sm text-[#8d90a2]">
             No emails found
           </div>
         ) : (
-          messages.map((msg, idx) => (
-            <button
-              key={msg.id}
-              onClick={() => {
-                if (msg.id && msg.threadId) {
-                  onSelectMessage(msg.id, msg.threadId)
-                }
-              }}
-              className={`relative w-full border-l-2 px-4 py-3 text-left transition-colors box-border ${msg.id === activeId
-                ? "border-[#b6c4ff] bg-[#b6c4ff]/5"
-                : "border-transparent hover:bg-[#292a2e]"
-              }`}
-            >
-              {msg.labelIds?.includes("UNREAD") && (
-                <span className="absolute left-4 top-3 size-[5] rounded-full bg-[#0b5cdf]" />
-              )}
-              <div className="flex items-start gap-2">
-                <span
-                  onClick={(e) => handleCheckClick(e, idx)}
-                  className={`mt-4 flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border transition-colors ${(msg.id && selectedIds.has(msg.id))
-                    ? "border-[#b6c4ff] bg-[#b6c4ff]"
-                    : "border-[#434656]/40 bg-[#1a1b1f] hover:border-[#b6c4ff]/60"
+          Array.from({ length: slotCount }).map((_, idx) => {
+            if (idx < messages.length) {
+              const msg = messages[idx]
+              if (!msg) return <SkeletonRow key={`empty-${idx}`} />
+              return (
+                <button
+                  key={msg.id}
+                  onClick={() => {
+                    if (msg.id && msg.threadId) {
+                      onSelectMessage(msg.id, msg.threadId)
+                    }
+                  }}
+                  className={`animate-in fade-in slide-in-from-bottom-2 duration-300 relative w-full border-l-2 px-4 py-3 text-left transition-colors box-border ${msg.id === activeId
+                    ? "border-[#b6c4ff] bg-[#b6c4ff]/5"
+                    : "border-transparent hover:bg-[#292a2e]"
                   }`}
                 >
-                  {(msg.id && selectedIds.has(msg.id)) && (
-                    <svg className="size-2.5 text-[#121317]" viewBox="0 0 12 12" fill="none">
-                      <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                  {msg.labelIds?.includes("UNREAD") && (
+                    <span className="absolute left-4 top-3 size-[5] rounded-full bg-[#0b5cdf]" />
                   )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
                     <span
-                      className={`truncate text-base ${msg.id === activeId
-                        ? "font-bold"
-                        : "font-medium"
-                      } text-[#e3e2e7]`}
+                      onClick={(e) => { e.stopPropagation(); handleCheckClick(e, idx) }}
+                      className={`mt-4 flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border transition-colors ${(msg.id && selectedIds.has(msg.id))
+                        ? "border-[#b6c4ff] bg-[#b6c4ff]"
+                        : "border-[#434656]/40 bg-[#1a1b1f] hover:border-[#b6c4ff]/60"
+                      }`}
                     >
-                      {msg.from.split("<")[0]}
+                      {(msg.id && selectedIds.has(msg.id)) && (
+                        <svg className="size-2.5 text-[#121317]" viewBox="0 0 12 12" fill="none">
+                          <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
                     </span>
-                    <span className="shrink-0 font-mono text-[10px] text-[#8d90a2]">
-                      {msg.date}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          className={`truncate text-base ${msg.id === activeId
+                            ? "font-bold"
+                            : "font-medium"
+                          } text-[#e3e2e7]`}
+                        >
+                          {msg.from.split("<")[0]}
+                        </span>
+                        <span className="shrink-0 font-mono text-[10px] text-[#8d90a2]">
+                          {msg.date}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs font-semibold text-[#e3e2e7]">
+                        {msg.subject}
+                      </p>
+                    </div>
                   </div>
-                  <p className="truncate text-xs font-semibold text-[#e3e2e7]">
-                    {msg.subject}
-                  </p>
-                </div>
-              </div>
-            </button>
-          ))
+                </button>
+              )
+            }
+            return <SkeletonRow key={`skel-${idx}`} />
+          })
         )}
       </div>
     </section>
+  )
+}
+
+function SkeletonRow() {
+  return (
+    <div className="flex items-center gap-2 border-l-2 border-transparent px-4 py-3">
+      <Skeleton className="size-3.5 shrink-0 rounded-[3px]" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-3 w-12 shrink-0" />
+        </div>
+        <Skeleton className="h-3 w-48" />
+      </div>
+    </div>
   )
 }
