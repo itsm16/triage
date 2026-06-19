@@ -1,29 +1,26 @@
-# Create T3 App
+### demo
+```
+https://drive.google.com/file/d/1XHfy1l3PS-s7e4ZQaRw6o4Ng9adYLOF6/view?usp=sharing
+```
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+1 min video
+```
+https://drive.google.com/file/d/1vCOLRILwubUOzPpnTcMOKhUSuau1EApe/view?usp=sharing
+```
 
-## What's next? How do I make an app with this?
-
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
-
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
-
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
-
-## Learn More
-
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
-
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
-
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+posts -
+- accepted
+```
+https://x.com/itsmg_twt/status/2064018487895638487
+```
+```
+https://www.linkedin.com/posts/mrinal-ganguly-11a822200_chaicode-corsairdev-share-7471157453255004160-G3jW/?utm_source=share&utm_medium=member_desktop&rcm=ACoAADNhECYBQmO-gLwsNrfc0R8CotnDbAHBlbs
+```
+- dx
+```
+https://x.com/itsmg_twt/status/2064670634316316883
+```
+- updates
+```
+https://x.com/itsmg_twt/status/2065832417114673284
+```

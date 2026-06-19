@@ -2,6 +2,6 @@
     reverse_proxy triage:3000
 }
 
-triage.itsmg.space {
+domain {
     reverse_proxy triage:3000
 }
