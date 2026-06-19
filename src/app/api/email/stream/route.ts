@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
         try {
           const listRes = await tenant.gmail.api.messages.list({
-            maxResults: 20,
+            maxResults: 6,
             pageToken: body.pageToken,
             labelIds: body.labelIds,
             q: body.q,
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
             send({ type: "message", index: i, total: ids.length, message: msg });
 
             if (i < ids.length - 1) {
-              await sleep(500);
+              await sleep(30);
             }
           }
 

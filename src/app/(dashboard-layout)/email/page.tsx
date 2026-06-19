@@ -229,7 +229,7 @@ export default function EmailPage() {
   }, [queryKey, requestBody])
 
   const displayMessages = data?.messages ?? streamMessages
-  const totalExpected = streamMeta?.totalExpected ?? 20
+  const totalExpected = data ? data.messages.length : 20
   const activeThread = api.corsair.getThread.useQuery(
     { id: activeThreadId! },
     { enabled: !!activeThreadId }
