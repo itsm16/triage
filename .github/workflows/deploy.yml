@@ -49,6 +49,7 @@ jobs:
             CORSAIR_KEK=${{ secrets.CORSAIR_KEK }}
             TOPIC=${{ secrets.TOPIC }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            INNGEST_EVENT_KEY=${{ secrets.INNGEST_EVENT_KEY }}
             EOF
             
             cat > /home/ubuntu/Caddyfile <<EOF

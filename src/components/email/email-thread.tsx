@@ -93,9 +93,9 @@ export function EmailThread({
                 >
                   <Trash2 className="size-4" />
                 </button>
-                <button className="flex items-center gap-1 rounded p-1.5 text-[#c3c5d9] transition-colors hover:text-[#e3e2e7]">
+                {/* <button className="flex items-center gap-1 rounded p-1.5 text-[#c3c5d9] transition-colors hover:text-[#e3e2e7]">
                   <Clock className="size-4" />
-                </button>
+                </button> */}
               </>
             )}
           </header>

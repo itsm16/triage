@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Skeleton } from "~/components/ui/skeleton"
+import { parseFromHeader } from "~/lib/utils"
 
 export interface EmailListItem {
   id?: string
@@ -170,7 +171,7 @@ export function EmailList({
                             : "font-medium"
                           } text-[#e3e2e7]`}
                         >
-                          {msg.from.split("<")[0]}
+                          {parseFromHeader(msg.from)}
                         </span>
                         <span className="shrink-0 font-mono text-[10px] text-[#8d90a2]">
                           {msg.date}

@@ -1,5 +1,7 @@
 "use client"
 
+import { parseFromHeader, extractEmailFromHeader } from "~/lib/utils"
+
 interface EmailMessageData {
   id?: string
   from?: string
@@ -26,8 +28,11 @@ export function EmailMessage({ message, variant }: EmailMessageProps) {
                 {message.from?.charAt(0) ?? "?"}
               </div>
               <div className="text-xs font-medium text-[#e3e2e7]">
-                {message.from}
+                {parseFromHeader(message.from ?? "")}
               </div>
+              <span className="text-[10px] text-[#8d90a2]">
+                {extractEmailFromHeader(message.from ?? "")}
+              </span>
               <span className="text-[10px] text-[#8d90a2]">
                 to {message.to}
               </span>
@@ -83,7 +88,7 @@ export function EmailMessage({ message, variant }: EmailMessageProps) {
           {message.from?.charAt(0) ?? "?"}
         </div>
         <span className="truncate text-[11px] text-[#c3c5d9]">
-          {message.from?.split("<")[0]?.trim() ?? message.from}
+          {parseFromHeader(message.from ?? "")}
         </span>
         <span className="font-mono text-[9px] text-[#8d90a2]">
           {message.date}

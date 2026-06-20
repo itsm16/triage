@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
-  Bell,
   History,
   Search,
   Trash2,
@@ -95,7 +94,6 @@ export default function EmailPage() {
   const [currentLabel, setCurrentLabel] = useState<string | undefined>(undefined)
   const [currentQuery, setCurrentQuery] = useState<string | undefined>(undefined)
   const notifCount = useNotificationStore((s) => s.count)
-  const resetNotifs = useNotificationStore((s) => s.reset)
 
   const [searchInput, setSearchInput] = useState("")
   const [debouncedInput, setDebouncedInput] = useState("")
@@ -153,7 +151,15 @@ export default function EmailPage() {
   const utils = api.useUtils()
   const queryInput = { pageToken, labelIds: parsed.labelIds, q: parsed.query || undefined }
 
-  const { data, refetch } = api.corsair.listMessages.useQuery(queryInput)
+  const { data, refetch } = api.corsair.listMessages.useQuery(queryInput, {
+    staleTime: 60_000,
+  })
+
+  useEffect(() => {
+    if (notifCount > 0) {
+      refetch();
+    }
+  }, [notifCount]);
 
   const [streamMessages, setStreamMessages] = useState<EmailListItem[]>([])
   const [streamMeta, setStreamMeta] = useState<{ nextPageToken: string | null; totalExpected: number } | null>(null)
@@ -534,18 +540,8 @@ export default function EmailPage() {
               </button>
             </>
           )}
-          <button
-            onClick={() => { resetNotifs(); void refetch() }}
-            className="relative flex items-center text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]"
-          >
-            <Bell className="size-5" />
-            {notifCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                {notifCount > 9 ? "9+" : notifCount}
-              </span>
-            )}
-          </button>
-          <History className="size-5 cursor-pointer text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" />
+
+          {/* <History className="size-5 cursor-pointer text-[#c3c5d9] transition-colors hover:text-[#b6c4ff]" /> */}
         </div>
       </header>
 

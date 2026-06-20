@@ -10,6 +10,7 @@ export function addClient(userId: string, controller: ReadableStreamDefaultContr
     clients.set(userId, new Set());
   }
   clients.get(userId)!.add({ controller, encoder: new TextEncoder() });
+  console.log('[sse] addClient: user', userId, 'total clients:', clients.get(userId)?.size);
 }
 
 export function removeClient(userId: string, controller: ReadableStreamDefaultController) {
@@ -26,7 +27,11 @@ export function removeClient(userId: string, controller: ReadableStreamDefaultCo
 
 export function pushEvent(userId: string, event: string, data: unknown) {
   const userClients = clients.get(userId);
-  if (!userClients) return;
+  if (!userClients) {
+    console.log('[sse] pushEvent: no clients for user', userId, 'total users:', clients.size);
+    return;
+  }
+  console.log('[sse] pushEvent: found', userClients.size, 'clients for user', userId);
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of userClients) {
     try {

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import React from "react";
 import { render } from "@react-email/render";
 import { z } from "zod";
+import { formatInternalDate, parseFromHeader } from "~/lib/utils";
 
 import {
   createTRPCRouter,
@@ -28,6 +29,7 @@ interface MessagePart {
 }
 
 const sentInvites = new Map<string, { title: string; start: string; end: string }>();
+const listResultCache = new Map<string, { ids: string[]; nextPageToken: string | null; timestamp: number }>();
 
 export const corsairRouter = createTRPCRouter({
   getConnectedPlugins: protectedProcedure.query(async ({ ctx }) => {
@@ -73,31 +75,88 @@ export const corsairRouter = createTRPCRouter({
       q: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const res = await ctx.tenant.gmail.api.messages.list({
-        maxResults: 20,
-        pageToken: input?.pageToken,
-        labelIds: input?.labelIds,
-        q: input?.q,
-      });
-      const messages = res.messages ?? [];
+      const tenantId = ctx.session.user.id;
+      const cacheKey = `${tenantId}:${input?.pageToken ?? ""}:${(input?.labelIds ?? []).join()}:${input?.q ?? ""}`;
+      const cached = listResultCache.get(cacheKey);
+      let ids: string[];
+      let nextPageToken: string | null;
 
-      const full = await Promise.all(
-        messages.map((m) =>
-          ctx.tenant.gmail.api.messages.get({ id: m.id!, format: "metadata"})
-        )
-      );
+      if (cached && Date.now() - cached.timestamp < 60_000) {
+        ids = cached.ids;
+        nextPageToken = cached.nextPageToken;
+      } else {
+        const res = await ctx.tenant.gmail.api.messages.list({
+          maxResults: 20,
+          pageToken: input?.pageToken,
+          labelIds: input?.labelIds,
+          q: input?.q,
+        });
+        ids = (res.messages ?? []).map(m => m.id!).filter(Boolean);
+        nextPageToken = res.nextPageToken ?? null;
+        listResultCache.set(cacheKey, { ids, nextPageToken, timestamp: Date.now() });
+      }
+
+      const dbEntities = ids.length > 0
+        ? await ctx.tenant.gmail.db.messages.findManyByEntityIds(ids)
+        : [];
+
+      const cache = new Map<string, {
+        id: string; threadId?: string; snippet: string; subject: string;
+        from: string; internalDate?: string | null; labelIds: string[];
+      }>();
+
+      for (const e of dbEntities) {
+        const d = e.data;
+        if (d.id) {
+          cache.set(e.entity_id, {
+            id: d.id,
+            threadId: d.threadId,
+            snippet: d.snippet ?? "",
+            subject: d.subject ?? "(no subject)",
+            from: d.from ?? "",
+            internalDate: d.internalDate,
+            labelIds: d.labelIds ?? [],
+          });
+        }
+      }
+
+      const missIds = ids.filter(id => !cache.has(id) || !cache.get(id)!.from);
+      if (missIds.length > 0) {
+        const apiResults = await Promise.allSettled(
+          missIds.map(id =>
+            ctx.tenant.gmail.api.messages.get({ id, format: "metadata" })
+          )
+        );
+        for (const result of apiResults) {
+          if (result.status === "fulfilled") {
+            const m = result.value;
+            cache.set(m.id!, {
+              id: m.id!,
+              threadId: m.threadId,
+              snippet: m.snippet ?? "",
+              subject: extractHeader(m, "Subject") ?? "(no subject)",
+              from: extractHeader(m, "From") ?? "",
+              internalDate: m.internalDate,
+              labelIds: m.labelIds ?? [],
+            });
+          }
+        }
+      }
 
       return {
-        messages: full.map((m) => ({
-          id: m.id,
-          threadId: m.threadId,
-          snippet: m.snippet ?? "",
-          subject: extractHeader(m, "Subject") ?? "(no subject)",
-          from: extractHeader(m, "From") ?? "",
-          date: extractHeader(m, "Date") ?? "",
-          labelIds: m.labelIds ?? [],
-        })),
-        nextPageToken: res.nextPageToken ?? null,
+        messages: ids
+          .map(id => cache.get(id))
+          .filter((m): m is NonNullable<typeof m> => !!m)
+          .map(m => ({
+            id: m.id,
+            threadId: m.threadId,
+            snippet: m.snippet ?? "",
+            subject: m.subject ?? "(no subject)",
+            from: parseFromHeader(m.from ?? ""),
+            date: formatInternalDate(m.internalDate),
+            labelIds: m.labelIds ?? [],
+          })),
+        nextPageToken,
       };
     }),
 
@@ -261,7 +320,6 @@ export const corsairRouter = createTRPCRouter({
         timeMax: input.timeMax,
         items: [{ id: "primary" }],
       });
-      console.log("res", res)
       const busy = res.calendars?.primary?.busy ?? [];
       return { hasConflict: busy.length > 0, busySlots: busy };
     }),
@@ -341,7 +399,6 @@ export const corsairRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const raw = buildRawEmail(input.to, input.subject, input.body ?? "");
       const encoded = Buffer.from(await raw).toString("base64url");
-      console.log(ctx.tenant)
       await ctx.tenant.gmail.api.drafts.create({ draft: { message: { raw: encoded } } });
       return { success: true };
     }),

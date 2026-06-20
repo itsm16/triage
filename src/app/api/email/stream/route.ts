@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { auth } from "~/server/better-auth";
 import { getTenantFromUser } from "~/server/corsair-tenant";
+import { formatInternalDate, parseFromHeader } from "~/lib/utils";
 
 function extractHeader(
   msg: { payload?: { headers?: Array<{ name?: string; value?: string }> } },
@@ -63,9 +64,13 @@ export async function POST(req: NextRequest) {
             q: body.q,
           });
 
-          const messages = listRes.messages ?? [];
-          const ids = messages.map((m: { id?: string }) => m.id!);
+          const ids = (listRes.messages ?? []).map((m: { id?: string }) => m.id!).filter(Boolean);
           const nextPageToken = listRes.nextPageToken ?? null;
+
+          const dbEntities = ids.length > 0
+            ? await tenant.gmail.db.messages.findManyByEntityIds(ids)
+            : [];
+          const cache = new Map(dbEntities.map((e: { entity_id: string; data: any }) => [e.entity_id, e.data]));
 
           send({ type: "ids", ids, nextPageToken });
 
@@ -76,19 +81,43 @@ export async function POST(req: NextRequest) {
 
           for (let i = 0; i < ids.length; i++) {
             const id = ids[i]!;
-            const m = await tenant.gmail.api.messages.get({
-              id,
-              format: "metadata",
-            });
+            const cached = cache.get(id);
+
+            let from: string;
+            let subject: string;
+            let snippet: string;
+            let labelIds: string[];
+            let internalDate: string | null | undefined;
+            let threadId: string | undefined;
+
+            if (cached?.from) {
+              from = cached.from;
+              subject = cached.subject ?? "(no subject)";
+              snippet = cached.snippet ?? "";
+              labelIds = cached.labelIds ?? [];
+              internalDate = cached.internalDate;
+              threadId = cached.threadId;
+            } else {
+              const m = await tenant.gmail.api.messages.get({
+                id,
+                format: "metadata",
+              });
+              from = extractHeader(m, "From") ?? "";
+              subject = extractHeader(m, "Subject") ?? "(no subject)";
+              snippet = m.snippet ?? "";
+              labelIds = m.labelIds ?? [];
+              internalDate = m.internalDate;
+              threadId = m.threadId;
+            }
 
             const msg = {
-              id: m.id,
-              threadId: m.threadId,
-              snippet: m.snippet ?? "",
-              subject: extractHeader(m, "Subject") ?? "(no subject)",
-              from: extractHeader(m, "From") ?? "",
-              date: extractHeader(m, "Date") ?? "",
-              labelIds: m.labelIds ?? [],
+              id,
+              threadId,
+              snippet,
+              subject,
+              from: parseFromHeader(from),
+              date: formatInternalDate(internalDate),
+              labelIds,
             };
 
             send({ type: "message", index: i, total: ids.length, message: msg });
