@@ -29,6 +29,6 @@ export function parseFromHeader(from: string): string {
 
 export function extractEmailFromHeader(from: string): string {
   if (!from) return ""
-  const match = from.match(/<([^>]+)>/)
+  const match = /<([^>]+)>/.exec(from)
   return match?.[1] ?? from
 }

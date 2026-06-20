@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
-  History,
   Search,
   Trash2,
   X,
@@ -157,9 +156,9 @@ export default function EmailPage() {
 
   useEffect(() => {
     if (notifCount > 0) {
-      refetch();
+      void refetch();
     }
-  }, [notifCount]);
+  }, [notifCount, refetch]);
 
   const [streamMessages, setStreamMessages] = useState<EmailListItem[]>([])
   const [streamMeta, setStreamMeta] = useState<{ nextPageToken: string | null; totalExpected: number } | null>(null)

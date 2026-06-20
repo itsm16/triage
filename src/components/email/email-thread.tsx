@@ -1,6 +1,6 @@
 "use client"
 
-import { Archive, Calendar, Clock, Send, Trash2, AlertTriangle } from "lucide-react"
+import { Archive, Calendar, Send, Trash2, AlertTriangle } from "lucide-react"
 import { EmailMessage } from "~/components/email/email-message"
 
 interface ThreadMessage {

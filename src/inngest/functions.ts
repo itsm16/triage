@@ -1,18 +1,9 @@
 import { inngest } from "./client";
 
-type GmailMessageProcessedEvent = {
-  data: {
-    tenantId: string;
-    emailAddress: string;
-    eventType: string;
-    historyId: string;
-  };
-};
-
 export const onGmailMessageProcessed = inngest.createFunction(
   { id: "gmail-message-processed", triggers: { event: "gmail/message.processed" }, retries: 3 },
-  async ({ event }) => {
-    const { tenantId, emailAddress, eventType } = (event as unknown as GmailMessageProcessedEvent).data;
+  async () => {
+    // TODO: handle processed Gmail messages
   },
 );
 

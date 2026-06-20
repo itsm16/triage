@@ -2,6 +2,12 @@ import { type NextRequest } from "next/server";
 import { auth } from "~/server/better-auth";
 import { getTenantFromUser } from "~/server/corsair-tenant";
 import { formatInternalDate, parseFromHeader } from "~/lib/utils";
+import type { Message } from "@corsair-dev/gmail/types";
+
+interface DbMessage extends Message {
+  from?: string;
+  subject?: string;
+}
 
 function extractHeader(
   msg: { payload?: { headers?: Array<{ name?: string; value?: string }> } },
@@ -70,7 +76,7 @@ export async function POST(req: NextRequest) {
           const dbEntities = ids.length > 0
             ? await tenant.gmail.db.messages.findManyByEntityIds(ids)
             : [];
-          const cache = new Map(dbEntities.map((e: { entity_id: string; data: any }) => [e.entity_id, e.data]));
+          const cache = new Map(dbEntities.map((e: { entity_id: string; data: DbMessage }) => [e.entity_id, e.data]));
 
           send({ type: "ids", ids, nextPageToken });
 

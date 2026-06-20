@@ -205,7 +205,7 @@ export function ChatInput({
                     searchResults.messages.map((m) => (
                       <button
                         key={m.id}
-                        onClick={() => handleEmailSelect(m.subject || m.from || m.id!, m.id!)}
+                        onClick={() => handleEmailSelect(m.subject || m.from || m.id, m.id)}
                         className="flex w-full flex-col gap-0.5 border-b border-[#434656]/5 px-3 py-2 text-left transition-colors hover:bg-[#292a2e]"
                       >
                         <span className="truncate text-xs font-medium text-[#e3e2e7]">{m.subject || "(no subject)"}</span>
