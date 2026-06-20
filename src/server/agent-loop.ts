@@ -131,16 +131,55 @@ ${SEND_EMAIL_INSTRUCTIONS}
 
 Continue using tools step by step until the task is complete.`;
 
-const BLOCKED_PATTERNS = [".delete(", ".destroy("];
+const BLOCKED_METHODS = new Set(["delete", "trash", "destroy", "batchDelete", "batchModify"]);
+const BLOCKED_KEYWORDS = ["delete", "trash", "destroy"];
+
+const BLOCKED_PATTERNS = [
+  /\bdelete\(/,
+  /\bdestroy\(/,
+  /\btrash\(/,
+  /\bbatchModify\(/,
+  /addLabelIds:\s*\[[^\]]*"TRASH"/,
+];
 
 function isCodeBlocked(code: string): boolean {
-  return BLOCKED_PATTERNS.some((p) => code.includes(p));
+  return BLOCKED_PATTERNS.some((p) => p.test(code));
+}
+
+function createSafeCorsair(corsair: Record<string, unknown>): Record<string, unknown> {
+  const seen = new WeakSet();
+  function proxy(obj: Record<string, unknown>, depth = 0): Record<string, unknown> {
+    if (typeof obj !== "object" || obj === null || seen.has(obj) || depth > 30) return obj;
+    seen.add(obj);
+    return new Proxy(obj, {
+      get(target, prop) {
+        const value: unknown = Reflect.get(target, prop);
+        if (typeof value === "function" && BLOCKED_METHODS.has(String(prop))) {
+          return async () => {
+            throw new Error(`Operation '${String(prop)}' is blocked and cannot be executed.`);
+          };
+        }
+        if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+          return proxy(value as Record<string, unknown>, depth + 1);
+        }
+        return value;
+      },
+    });
+  }
+  return proxy(corsair);
+}
+
+function filterOperationList(text: string): string {
+  const lines = text.split("\n");
+  return lines.filter((line) => !BLOCKED_KEYWORDS.some((kw) => line.toLowerCase().includes(kw))).join("\n");
 }
 
 export async function buildAgentTools(tenantCorsair: unknown): Promise<AgentTools> {
   const { AnthropicProvider } = await import("@corsair-dev/mcp");
   const provider = new AnthropicProvider();
-  const corsairTools = provider.build({ corsair: tenantCorsair as Record<string, unknown> }) as CorsairTool[];
+
+  const safeCorsair = createSafeCorsair(tenantCorsair as Record<string, unknown>);
+  const corsairTools = provider.build({ corsair: safeCorsair }) as CorsairTool[];
 
   const sanitized: CorsairTool[] = corsairTools.map((tool) => {
     if (tool.name === "run_script") {
@@ -151,6 +190,30 @@ export async function buildAgentTools(tenantCorsair: unknown): Promise<AgentTool
           const code = (args as Record<string, unknown>)?.code ?? "";
           if (typeof code === "string" && isCodeBlocked(code)) {
             return "Error: delete/trash/destroy operations are blocked and cannot be executed.";
+          }
+          return originalRun(args);
+        },
+      };
+    }
+    if (tool.name === "list_operations") {
+      const originalRun = tool.run;
+      return {
+        ...tool,
+        run: async (args: unknown) => {
+          const result = await originalRun(args);
+          return filterOperationList(result);
+        },
+      };
+    }
+    if (tool.name === "get_schema") {
+      const originalRun = tool.run;
+      return {
+        ...tool,
+        description: tool.description + " Note: delete/trash/destroy operations are blocked.",
+        run: async (args: unknown) => {
+          const path = (args as Record<string, unknown>)?.path ?? "";
+          if (typeof path === "string" && BLOCKED_KEYWORDS.some((kw) => path.toLowerCase().includes(kw))) {
+            return "This operation is blocked and cannot be executed.";
           }
           return originalRun(args);
         },
