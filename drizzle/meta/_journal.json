@@ -29,6 +29,13 @@
       "when": 1781798529688,
       "tag": "0003_marvelous_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782066128348,
+      "tag": "0004_smart_cerebro",
+      "breakpoints": true
     }
   ]
 }

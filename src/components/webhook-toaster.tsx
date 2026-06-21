@@ -7,6 +7,7 @@ import { useNotificationStore } from "~/lib/notification-store";
 interface WebhookMessage {
   type: "messageReceived"
   historyId: string
+  action?: "received" | "delete" | "trash" | "updated"
 }
 
 export function WebhookToaster() {
@@ -43,10 +44,31 @@ export function WebhookToaster() {
           const now = Date.now();
           if (now - lastToastRef.current > 2000) {
             lastToastRef.current = now;
-            toast.info("New email received", {
-              description: "Check your inbox",
+            switch (data.action) {
+              case "delete":
+                toast.warning("Email moved to trash", {
+                  description: "A message was sent to the Trash folder",
+                  duration: 4000,
+                })
+                break;
+              case "trash":
+                toast.warning("Email permanently deleted", {
+                  description: "A message was permanently removed",
+                  duration: 4000,
+                })
+                break;
+              case "updated":
+                toast.info("Email updated", {
+                  description: "Labels changed in your inbox",
+                  duration: 4000,
+                })
+                break;
+              default:
+            toast.info("Check new updates", {
+              description: "Something changed in your inbox",
               duration: 4000,
             })
+            }
           }
         }
       } catch {
