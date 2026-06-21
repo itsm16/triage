@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useNotificationStore } from "~/lib/notification-store";
 
 interface WebhookMessage {
-  type: "messageReceived" | "messageDeleted" | "messageLabelChanged"
+  type: "messageReceived"
   historyId: string
 }
 
@@ -48,10 +48,6 @@ export function WebhookToaster() {
               duration: 4000,
             })
           }
-        } else if (data.type === "messageDeleted") {
-          toast.info("Email deleted", { duration: 3000 });
-        } else if (data.type === "messageLabelChanged") {
-          toast.info("Email labels changed", { duration: 3000 });
         }
       } catch {
         console.error("[webhook-toaster] failed to parse event", e.data);

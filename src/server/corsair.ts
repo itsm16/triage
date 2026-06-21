@@ -33,6 +33,7 @@ export const corsair = createCorsair({
                     if (!result.data) return;
                     try {
                         const { emailAddress, historyId, type } = result.data;
+                        if (type !== "messageReceived") return;
                         const userRecord = await db
                             .select({ id: user.id })
                             .from(user)
